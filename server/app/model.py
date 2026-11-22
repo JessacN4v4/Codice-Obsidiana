@@ -14,7 +14,7 @@ class MissionModel(mesa.Model):
     - rng: semilla; con la misma semilla la simulación se repite igual.
     """
 
-    def __init__(self, dt: float = 0.1, rng: int | None = None):
+    def __init__(self, dt=0.1, rng=None):
         super().__init__(rng=rng)
         self.dt = dt
         # Tiempo simulado en segundos. No se llama "time" porque Mesa
@@ -26,7 +26,7 @@ class MissionModel(mesa.Model):
         self.agents.shuffle_do("step")
         self.sim_time += self.dt
 
-    def state(self) -> dict:
+    def state(self):
         """Estado que se manda al cliente. Claves en camelCase para JsonUtility."""
         return {
             "tick": self.steps,
