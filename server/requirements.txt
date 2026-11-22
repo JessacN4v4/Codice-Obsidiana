@@ -1,0 +1,8 @@
+# Servidor de simulación — Python 3.12 o superior
+mesa>=3.5,<4
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Pruebas
+pytest>=8
+httpx>=0.27
