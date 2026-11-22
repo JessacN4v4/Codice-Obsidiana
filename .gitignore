@@ -1,0 +1,80 @@
+# =========================================================
+#  Códice Obsidiana
+# =========================================================
+
+# ---------- Sistema operativo y editores ----------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.swp
+*~
+.idea/
+.vs/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# ---------- Unity ----------
+client/[Ll]ibrary/
+client/[Tt]emp/
+client/[Oo]bj/
+client/[Bb]uild/
+client/[Bb]uilds/
+client/[Ll]ogs/
+client/[Uu]ser[Ss]ettings/
+client/[Mm]emoryCaptures/
+client/[Rr]ecordings/
+
+# Archivos que generan Visual Studio / Rider
+client/*.csproj
+client/*.sln
+client/*.slnx
+client/*.suo
+client/*.user
+client/*.pidb
+client/*.booproj
+client/*.svd
+client/*.pdb
+client/*.mdb
+client/*.opendb
+client/*.VC.db
+
+# Metadatos de símbolos y crash reports
+client/*.pidb.meta
+client/*.pdb.meta
+client/*.mdb.meta
+client/sysinfo.txt
+client/crashlytics-build.properties
+
+# Builds empaquetados
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# Addressables / StreamingAssets generados
+client/[Aa]ssets/[Ss]treamingAssets/aa/*
+client/[Aa]ssets/[Ss]treamingAssets/aa.meta
+
+# ---------- Python (servidor en server/) ----------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.ipynb_checkpoints/
+
+# ---------- Secretos ----------
+.env
+.env.*
+!.env.example
+
+# ---------- Arte fuente ----------
+art-source/
+*.blend1
+*.blend2
