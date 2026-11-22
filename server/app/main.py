@@ -30,10 +30,16 @@ class PlayerInput(BaseModel):
     lighting: str | None = None     # id del troje que está quemando ("A", "B", "C")
 
 
+class Target(BaseModel):
+    x: float
+    y: float
+
+
 class StepRequest(BaseModel):
     # Si el cliente se atrasa puede pedir varios pasos a la vez (máx. 10)
     steps: int = Field(default=1, ge=1, le=10)
     player: PlayerInput | None = None
+    stone: Target | None = None     # lanzar una piedra hacia este punto
 
 
 @app.get("/health")
@@ -63,6 +69,10 @@ def step_session(session_id: str, request: StepRequest | None = None):
             model.set_player(p.x, p.y, p.running, p.lighting)
     # se juntan los eventos de todos los pasos para no perder ninguno
     events = []
+    if request is not None and request.stone is not None:
+        model.events = []            # para no repetir los eventos del paso anterior
+        model.throw_stone(request.stone.x, request.stone.y)
+        events = events + model.events
     for _ in range(steps):
         model.step()
         events = events + model.events

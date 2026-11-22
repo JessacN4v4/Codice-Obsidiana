@@ -8,6 +8,7 @@ PLAYER_RUN_SPEED = 185.0
 AGENT_RADIUS = 10.0          # radio de colisión de personas
 BURN_TIME = 1.3              # mantener E para quemar un troje
 BURN_REACH = 54.0            # distancia máxima al centro del troje
+BURN_DECAY = 1.5             # si sueltas E, el progreso baja 1.5 por segundo
 
 # ---------- Visión ----------
 FOV_HALF_ANGLE = 0.72        # medio ángulo del cono (~41°, cono total ~82°)
@@ -75,8 +76,10 @@ AWARENESS_INVESTIGATE = 35.0
 AWARENESS_CHASE = 100.0
 
 # ---------- Fuego, ruido y alarma ----------
-FIRE_INVESTIGATE_RADIUS = 480.0
+FIRE_INVESTIGATE_RADIUS = 480.0         # fase 1: guardias a esta distancia van a ver el fuego
+FIRE_NOISE_RADIUS = 260.0               # fase 2: quemar un troje hace ruido
 ALARM_DELAY = 2.5                       # tras el tercer troje
+CANOE_MESSAGE_COOLDOWN = 3.0            # cada cuánto repetir "aún quedan trojes"
 STONE_NOISE_RADIUS = 230.0
 RUN_NOISE_RADIUS = 115.0                # fase 2
 RUN_NOISE_INTERVAL = 0.4
