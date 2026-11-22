@@ -17,12 +17,56 @@ import math
 import numpy as np
 
 from app.geometry import clamp, dist, rect_distance
-from app.map_data import OBSTACLES, WORLD_H, WORLD_W, is_water
+from app.map_data import OBSTACLES, WORLD_H, WORLD_W, is_water, shore_x
 from app.params import (
     NAV_CELL, NAV_INFLATE, NAV_MAX_ITERATIONS, NAV_WALK_CLEARANCE, NAV_WATER_MARGIN,
 )
 
 SQRT2 = 1.4142
+
+
+def resolve(p, r, obstacles=OBSTACLES):
+    """Colisión: empuja un círculo de radio r fuera de los obstáculos, del agua y de los bordes.
+
+    Regresa la posición corregida.
+    """
+    x, y = p
+    for o in obstacles:
+        ox, oy, ow, oh = o["rect"]
+        cx = clamp(x, ox, ox + ow)      # punto del rectángulo más cercano al círculo
+        cy = clamp(y, oy, oy + oh)
+        dx = x - cx
+        dy = y - cy
+        d2 = dx * dx + dy * dy
+        if d2 < r * r:
+            if d2 > 0.0001:
+                # el centro está afuera: se empuja en la dirección contraria al rectángulo
+                d = math.sqrt(d2)
+                x = cx + dx / d * r
+                y = cy + dy / d * r
+            else:
+                # el centro quedó adentro: se saca por el lado más cercano
+                left = x - ox
+                right = ox + ow - x
+                top = y - oy
+                bottom = oy + oh - y
+                m = min(left, right, top, bottom)
+                if m == left:
+                    x = ox - r
+                elif m == right:
+                    x = ox + ow + r
+                elif m == top:
+                    y = oy - r
+                else:
+                    y = oy + oh + r
+    # no meterse al lago
+    sx = shore_x(y) + r * 0.6
+    if x < sx:
+        x = sx
+    # no salirse del mundo
+    x = clamp(x, r, WORLD_W - r)
+    y = clamp(y, r, WORLD_H - r)
+    return (x, y)
 
 
 class NavGrid:
