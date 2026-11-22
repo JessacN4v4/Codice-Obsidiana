@@ -145,7 +145,7 @@ START = (1940, 700)
 SENTRY = "sentry"                    # centinela: quieto en su puesto, solo gira
 PATROL_OUTSIDE = "patrol_outside"    # patrulla por el pueblo
 PATROL_INSIDE = "patrol_inside"      # patrulla dentro de un almacén
-CANOE_GUARD = "canoe_guard"          # guardia de la canoa: no se mueve ni gira;
+CANOE_GUARD = "canoe_guard"          # guardia de la canoa: no se mueve y gira muy poco;
                                      # solo una piedra lo hace ir a ver
 
 # zone: almacén al que pertenece (None = pueblo). face: ángulo base del centinela.
@@ -174,9 +174,8 @@ GUARD_SPAWNS = [
         "route": [(820, 600), (700, 860), (560, 700)]},
     {"role": PATROL_OUTSIDE, "pos": (330, 1080), "zone": None, "face": 0.0,
         "route": [(330, 1080), (600, 1160), (500, 1050)]},
-    # Canoa de escape: guardia fijo junto a la canoa, mirando hacia el pueblo
-    {"role": CANOE_GUARD, "pos": (CANOE[0] + 32, CANOE[1]), "zone": None, "face": FACE_EAST,
-        "route": []},
+    # Canoa de escape: guardia arriba de la canoa, mirando hacia tierra (por donde llegas)
+    {"role": CANOE_GUARD, "pos": CANOE, "zone": None, "face": FACE_EAST, "route": []},
 ]
 
 # Refuerzos que aparecen al sonar la alarma (fase 2): salen de las puertas

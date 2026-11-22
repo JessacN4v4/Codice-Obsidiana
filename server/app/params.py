@@ -31,6 +31,13 @@ GUARD_TURN_RATE = 7.0        # qué tan rápido gira hacia su objetivo (factor p
 SENTRY_SCAN_AMPLITUDE = 0.65  # rad a cada lado del ángulo base (~37°)
 SENTRY_SCAN_FREQUENCY = 0.9   # rad/s dentro del seno
 
+# ---------- Guardia de la canoa ----------
+# Está arriba de la canoa y gira muy poco. Si subes a la canoa con él ahí, te captura:
+# hay que alejarlo con una piedra para poder escapar.
+CANOE_SCAN_AMPLITUDE = 0.25   # rad a cada lado (~14°), giro muy leve
+CANOE_SCAN_FREQUENCY = 0.6
+CANOE_BOARD_RADIUS = 40.0     # a menos de esto del centro de la canoa ya estás "en la canoa"
+
 # ---------- Investigar / buscar / perseguir ----------
 INVESTIGATE_LOOK_TIME = 2.6   # segundos mirando alrededor al llegar
 INVESTIGATE_LOOK_AMPLITUDE = 1.1
