@@ -190,6 +190,42 @@ GUARD_SPAWNS = [
     {"role": CANOE_GUARD, "pos": CANOE, "zone": None, "face": FACE_EAST, "route": []},
 ]
 
+def rect_as_dict(r):
+    return {"x": r[0], "y": r[1], "w": r[2], "h": r[3]}
+
+
+def map_as_dict():
+    """Todo el mapa en un diccionario (claves en camelCase) para mandarlo a Unity"""
+    obstacles = []
+    for o in OBSTACLES:
+        if o["kind"] == "troje":
+            continue                       # los trojes van aparte, con su id
+        obstacles.append({"kind": o["kind"], "sight": o["sight"], "rect": rect_as_dict(o["rect"])})
+    zones = []
+    for z in ZONES:
+        zones.append({"id": z["id"], "name": z["name"], "level": z["level"], "mult": z["mult"],
+                      "rect": rect_as_dict(z["rect"]), "gate": rect_as_dict(z["gate"])})
+    trojes = []
+    for t in TROJES:
+        trojes.append({"id": t["id"], "zone": t["zone"], "rect": rect_as_dict(t["rect"])})
+    # orilla del lago: un punto cada 20 px
+    shore = []
+    for y in range(0, WORLD_H + 1, 20):
+        shore.append({"x": round(shore_x(y), 1), "y": y})
+    return {
+        "worldW": WORLD_W,
+        "worldH": WORLD_H,
+        "obstacles": obstacles,
+        "zones": zones,
+        "trojes": trojes,
+        "maize": [rect_as_dict(m) for m in MAIZE],
+        "plaza": {"x": PLAZA_CENTER[0], "y": PLAZA_CENTER[1], "r": PLAZA_RADIUS},
+        "canoe": {"x": round(CANOE[0], 1), "y": CANOE[1]},
+        "start": {"x": START[0], "y": START[1]},
+        "shore": shore,
+    }
+
+
 # Refuerzos que aparecen al sonar la alarma (fase 2): salen de las puertas
 REINFORCEMENT_SPAWNS = [
     {"role": PATROL_OUTSIDE, "pos": (600, 470), "zone": None, "face": 0.0,
