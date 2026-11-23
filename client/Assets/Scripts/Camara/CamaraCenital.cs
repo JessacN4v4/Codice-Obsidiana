@@ -30,8 +30,11 @@ public class CamaraCenital : MonoBehaviour
             return;
         }
 
-        float rueda = Input.GetAxis("Mouse ScrollWheel");
-        zoom = Mathf.Clamp(zoom - rueda * velocidadZoom, zoomMinimo, zoomMaximo);
+        if (!ControlDeCamaras.EnSeguimiento)   // la rueda solo hace zoom en la cámara con la que se juega
+        {
+            float rueda = Input.GetAxis("Mouse ScrollWheel");
+            zoom = Mathf.Clamp(zoom - rueda * velocidadZoom, zoomMinimo, zoomMaximo);
+        }
 
         Vector3 desplazamiento = new Vector3(0f, altura, -distanciaAtras) * zoom;
         Vector3 deseada = objetivo.position + desplazamiento;
