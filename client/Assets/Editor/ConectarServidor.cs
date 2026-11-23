@@ -67,6 +67,17 @@ public static class ConectarServidor
         vista.materialCono = MaterialTransparente("ConoVision", new Color(1f, 0.95f, 0.7f, 0.18f));
 
         Undo.RegisterCreatedObjectUndo(simulacion, "Conectar con el servidor");
+
+        // Acciones del jugador (quemar trojes), conectadas al cliente
+        InteraccionJugador interaccion = jugador.GetComponent<InteraccionJugador>();
+        if (interaccion == null)
+        {
+            interaccion = Undo.AddComponent<InteraccionJugador>(jugador.gameObject);
+        }
+        interaccion.cliente = cliente;
+        interaccion.movimiento = jugador;
+        EditorUtility.SetDirty(interaccion);
+
         EditorSceneManager.MarkSceneDirty(simulacion.scene);
         Selection.activeGameObject = simulacion;
         Debug.Log("Simulación lista. Levanta el servidor, guarda la escena y dale Play.");

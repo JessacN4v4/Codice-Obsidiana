@@ -24,6 +24,9 @@ public class MovimientoJugador : MonoBehaviour
     public bool Corriendo { get; private set; }
     public bool Agotado { get; private set; }
 
+    // Otros scripts lo activan para que el jugador no se mueva (por ejemplo, mientras quema un troje)
+    public bool Bloqueado { get; set; }
+
     private Rigidbody rb;
     private Vector3 direccion;                 // hacia dónde quiere moverse (largo 0 o 1)
 
@@ -39,6 +42,10 @@ public class MovimientoJugador : MonoBehaviour
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
         direccion = new Vector3(x, 0f, z).normalized;
+        if (Bloqueado)
+        {
+            direccion = Vector3.zero;          // quieto (y sin correr)
+        }
         bool moviendose = direccion != Vector3.zero;
 
         bool quiereCorrer = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
