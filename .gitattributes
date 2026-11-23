@@ -27,6 +27,9 @@
 
 LightingData.asset   binary
 
+# Datos del terreno (mapa de pesos de las texturas): pesados, van a Git LFS
+client/Assets/Art/Terreno/*.asset filter=lfs diff=lfs merge=lfs -text
+
 # ---------- Git LFS: binarios pesados ----------
 # Modelos 3D
 *.fbx   filter=lfs diff=lfs merge=lfs -text

@@ -153,6 +153,27 @@ public static class ColocarAmbientacion
         }
         Apagar(canoa);
 
+        // ---------- yácata ----------
+        // su pivote es el centro de la caja que encierra los escalones del graybox
+        Transform yacata = graybox.Find("Yacata");
+        if (yacata != null)
+        {
+            AplicarTexturaYacata();
+            float norte = float.MinValue;
+            float sur = float.MaxValue;
+            foreach (Transform escalon in yacata)
+            {
+                norte = Mathf.Max(norte, escalon.position.z + escalon.localScale.z / 2f);
+                sur = Mathf.Min(sur, escalon.position.z - escalon.localScale.z / 2f);
+                Apagar(escalon);
+            }
+            Vector3 pivote = new Vector3(yacata.GetChild(0).position.x, 0f, (norte + sur) / 2f);
+            if (Poner(Modelos + "Yacata/SM_Yacata.fbx", pivote, raiz.transform))
+            {
+                colocados++;
+            }
+        }
+
         EditorSceneManager.MarkSceneDirty(raiz.scene);
         Selection.activeGameObject = raiz;
         Debug.Log("Ambientación colocada: " + colocados + " modelos. Guarda la escena (Ctrl + S).");
@@ -179,13 +200,22 @@ public static class ColocarAmbientacion
         {
             Undo.DestroyObjectImmediate(anterior);
         }
-        // volver a encender todas las cajas del graybox
-        foreach (Renderer r in graybox.GetComponentsInChildren<Renderer>(true))
+        // volver a encender solo las cajas que maneja este menú (el suelo y la plaza los maneja el terreno)
+        string[] grupos = { "Almacenes", "Empalizadas", "Trojes", "Casas", "Puestos", "Maizales", "Canoa", "Yacata" };
+        foreach (string nombre in grupos)
         {
-            if (!r.enabled)
+            Transform grupo = graybox.Find(nombre);
+            if (grupo == null)
             {
-                Undo.RecordObject(r, "Encender graybox");
-                r.enabled = true;
+                continue;
+            }
+            foreach (Renderer r in grupo.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!r.enabled)
+                {
+                    Undo.RecordObject(r, "Encender graybox");
+                    r.enabled = true;
+                }
             }
         }
     }
@@ -208,6 +238,50 @@ public static class ColocarAmbientacion
         copia.transform.position = new Vector3(posicionCaja.x, 0f, posicionCaja.z);
         copia.transform.rotation = Quaternion.identity;
         return copia;
+    }
+
+    // ---------- textura de piedra de la yácata ----------
+    static void AplicarTexturaYacata()
+    {
+        // Crea un material URP Lit con las texturas T_MuroXanamu y le dice al importador del FBX
+        // que lo use en lugar de su material "M_MuroXanamu" (eso se llama "remap" de material).
+        const string carpeta = "Assets/Art/Materials";
+        const string texturas = "Assets/Art/Textures/Modelos/T_MuroXanamu_";
+        if (!AssetDatabase.IsValidFolder(carpeta))
+        {
+            AssetDatabase.CreateFolder("Assets/Art", "Materials");
+        }
+        string ruta = carpeta + "/M_MuroXanamu.mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(ruta);
+        if (material == null)
+        {
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            AssetDatabase.CreateAsset(material, ruta);
+        }
+        Texture2D color = AssetDatabase.LoadAssetAtPath<Texture2D>(texturas + "BaseColor.png");
+        Texture2D normal = AssetDatabase.LoadAssetAtPath<Texture2D>(texturas + "Normal.png");
+        Texture2D mascara = AssetDatabase.LoadAssetAtPath<Texture2D>(texturas + "Mask.png");
+        material.SetTexture("_BaseMap", color);
+        material.SetColor("_BaseColor", Color.white);
+        material.SetTexture("_BumpMap", normal);
+        material.EnableKeyword("_NORMALMAP");
+        // máscara: R = metal y A = suavidad (MetallicGlossMap), G = oclusión (OcclusionMap)
+        material.SetTexture("_MetallicGlossMap", mascara);
+        material.EnableKeyword("_METALLICSPECGLOSSMAP");
+        material.SetTexture("_OcclusionMap", mascara);
+        material.EnableKeyword("_OCCLUSIONMAP");
+        // las UV del modelo están en metros: que la textura cubra 2 m
+        material.SetTextureScale("_BaseMap", new Vector2(0.5f, 0.5f));
+        EditorUtility.SetDirty(material);
+
+        string rutaModelo = Modelos + "Yacata/SM_Yacata.fbx";
+        ModelImporter importador = (ModelImporter)AssetImporter.GetAtPath(rutaModelo);
+        if (importador == null)
+        {
+            return;
+        }
+        importador.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), "M_MuroXanamu"), material);
+        importador.SaveAndReimport();
     }
 
     // ---------- trojes: modelo intacto + quemado (oculto) + fuego y humo ----------
