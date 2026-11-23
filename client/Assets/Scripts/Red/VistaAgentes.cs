@@ -18,6 +18,13 @@ public class VistaAgentes : MonoBehaviour
     public Material materialCargador;
     public Material materialCono;          // transparente
 
+    [Header("Modelos 3D (los asigna el menú Codice > Configurar personajes)")]
+    public GameObject modeloGuardia;
+    public GameObject modeloGuardiaCanoa;
+    public GameObject modeloCargador;
+    public GameObject[] modelosAldeanos;   // se reparten entre los aldeanos de la plaza
+    public RuntimeAnimatorController controlador;   // parado / caminar / correr
+
     [Header("Color del cono según el estado del guardia")]
     public Color conoTranquilo = new Color(1f, 0.95f, 0.7f, 0.18f);
     public Color conoInvestigando = new Color(1f, 0.6f, 0.1f, 0.28f);
@@ -139,8 +146,10 @@ public class VistaAgentes : MonoBehaviour
     // ---------- crear las figuras ----------
     Visual CrearGuardia(GuardiaDatos g)
     {
-        Material cuerpo = g.role == "canoe_guard" ? materialGuardiaCanoa : materialGuardia;
-        Visual v = CrearPersona("Guardia_" + g.id + " (" + g.role + ")", cuerpo, g.x, g.y, g.face);
+        bool deLaCanoa = g.role == "canoe_guard";
+        Material cuerpo = deLaCanoa ? materialGuardiaCanoa : materialGuardia;
+        GameObject modelo = deLaCanoa ? modeloGuardiaCanoa : modeloGuardia;
+        Visual v = CrearPersona("Guardia_" + g.id + " (" + g.role + ")", cuerpo, modelo, g.x, g.y, g.face);
 
         GameObject cono = new GameObject("Cono");
         cono.transform.SetParent(v.raiz.transform, false);
@@ -157,8 +166,17 @@ public class VistaAgentes : MonoBehaviour
     Visual CrearAldeano(AldeanoDatos a)
     {
         string nombre = a.carrier ? "Cargador_" + a.id : "Aldeano_" + a.id;
-        Visual v = CrearPersona(nombre, a.carrier ? materialCargador : materialAldeano, a.x, a.y, a.face);
-        if (a.carrier)
+        GameObject modelo = modeloCargador;
+        if (!a.carrier)
+        {
+            modelo = null;
+            if (modelosAldeanos != null && modelosAldeanos.Length > 0)
+            {
+                modelo = modelosAldeanos[a.id % modelosAldeanos.Length];     // artesano, mujer, campesino...
+            }
+        }
+        Visual v = CrearPersona(nombre, a.carrier ? materialCargador : materialAldeano, modelo, a.x, a.y, a.face);
+        if (a.carrier && modelo == null)
         {
             // bulto en la espalda
             GameObject bulto = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -172,21 +190,41 @@ public class VistaAgentes : MonoBehaviour
         return v;
     }
 
-    Visual CrearPersona(string nombre, Material material, float x, float y, float angulo)
+    Visual CrearPersona(string nombre, Material material, GameObject modelo, float x, float y, float angulo)
     {
-        // raíz al nivel del suelo; el cuerpo es una cápsula de 1.8 m sin collider
+        // raíz al nivel del suelo, mirando hacia donde mira el agente
         GameObject raiz = new GameObject(nombre);
         raiz.transform.SetParent(transform, false);
         raiz.transform.position = Mapa.AMundo(x, y);
         raiz.transform.rotation = Quaternion.Euler(0f, Mapa.AnguloAGrados(angulo), 0f);
 
-        GameObject cuerpo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-        cuerpo.name = "Cuerpo";
-        Destroy(cuerpo.GetComponent<Collider>());
-        cuerpo.transform.SetParent(raiz.transform, false);
-        cuerpo.transform.localPosition = new Vector3(0f, 0.9f, 0f);
-        cuerpo.transform.localScale = new Vector3(1f, 0.9f, 1f);
-        cuerpo.GetComponent<Renderer>().sharedMaterial = material;
+        if (modelo != null)
+        {
+            // modelo 3D animado: el Animator elige parado / caminar / correr según la velocidad
+            GameObject cuerpo = Instantiate(modelo, raiz.transform);
+            cuerpo.name = "Modelo";
+            cuerpo.transform.localPosition = Vector3.zero;
+            cuerpo.transform.localRotation = Quaternion.identity;
+            Animator animator = cuerpo.GetComponent<Animator>();
+            if (animator != null)
+            {
+                animator.runtimeAnimatorController = controlador;
+                animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;   // fuera de cámara no se calcula
+                AnimacionPorVelocidad animacion = cuerpo.AddComponent<AnimacionPorVelocidad>();
+                animacion.cuerpo = raiz.transform;
+            }
+        }
+        else
+        {
+            // sin modelo: cápsula de 1.8 m sin collider (como en el graybox)
+            GameObject cuerpo = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            cuerpo.name = "Cuerpo";
+            Destroy(cuerpo.GetComponent<Collider>());
+            cuerpo.transform.SetParent(raiz.transform, false);
+            cuerpo.transform.localPosition = new Vector3(0f, 0.9f, 0f);
+            cuerpo.transform.localScale = new Vector3(1f, 0.9f, 1f);
+            cuerpo.GetComponent<Renderer>().sharedMaterial = material;
+        }
 
         Visual v = new Visual();
         v.raiz = raiz;

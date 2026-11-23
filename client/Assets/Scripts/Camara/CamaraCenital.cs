@@ -10,8 +10,8 @@ public class CamaraCenital : MonoBehaviour
     public Transform objetivo;                 // el jugador; se asigna en el Inspector
 
     [Header("Posición respecto al jugador (m)")]
-    public float altura = 22f;
-    public float distanciaAtras = 16f;         // hacia el sur, para verlo inclinado
+    public float altura = 19f;
+    public float distanciaAtras = 14f;         // hacia el sur, para verlo inclinado
 
     [Header("Zoom con la rueda del mouse")]
     public float zoomMinimo = 0.5f;

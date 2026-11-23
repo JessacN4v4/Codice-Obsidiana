@@ -6,17 +6,21 @@ using UnityEngine;
 /// Configura solo la importación del arte que entra a Assets/Art (un AssetPostprocessor
 /// es una clase que Unity llama cada vez que importa un archivo).
 /// Modelos: sin cámaras, luces, colliders ni animaciones (las colisiones las pone el graybox).
-/// Texturas: los "_Normal" como mapa de normales, los "_Mask" en modo lineal, máximo 2K.
+/// Personajes: esqueleto Humanoid (para compartir animaciones) y animaciones en bucle.
+/// Texturas: "_Normal" como mapa de normales; "_Mask" y "_MetallicSmoothness" en modo lineal; máximo 2K.
 /// Solo actúa la primera vez que se importa cada archivo, para no borrar ajustes hechos a mano.
 /// </summary>
 public class ImportacionArte : AssetPostprocessor
 {
+    const string CarpetaArte = "Assets/Art/";
     const string CarpetaModelos = "Assets/Art/Models/";
-    const string CarpetaTexturas = "Assets/Art/Textures/";
+    const string CarpetaPersonajes = "Assets/Art/Characters/";
 
     void OnPreprocessModel()
     {
-        if (!assetPath.StartsWith(CarpetaModelos) || !assetImporter.importSettingsMissing)
+        bool esModelo = assetPath.StartsWith(CarpetaModelos);
+        bool esPersonaje = assetPath.StartsWith(CarpetaPersonajes);
+        if ((!esModelo && !esPersonaje) || !assetImporter.importSettingsMissing)
         {
             return;
         }
@@ -25,14 +29,46 @@ public class ImportacionArte : AssetPostprocessor
         modelo.importLights = false;
         modelo.addCollider = false;                 // la colisión exacta ya está en el graybox
         modelo.isReadable = false;                  // ahorra memoria
-        modelo.importAnimation = false;
-        modelo.animationType = ModelImporterAnimationType.None;
         modelo.materialImportMode = ModelImporterMaterialImportMode.ImportViaMaterialDescription;
+
+        if (esPersonaje)
+        {
+            // Humanoid: Unity reconoce cabeza, brazos y piernas, y así una animación sirve para todos
+            modelo.animationType = ModelImporterAnimationType.Human;
+            modelo.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+            modelo.importAnimation = true;
+        }
+        else
+        {
+            modelo.importAnimation = false;
+            modelo.animationType = ModelImporterAnimationType.None;
+        }
+    }
+
+    void OnPreprocessAnimation()
+    {
+        if (!assetPath.StartsWith(CarpetaPersonajes) || !assetImporter.importSettingsMissing)
+        {
+            return;
+        }
+        ModelImporter modelo = (ModelImporter)assetImporter;
+        ModelImporterClipAnimation[] clips = modelo.defaultClipAnimations;
+        foreach (ModelImporterClipAnimation clip in clips)
+        {
+            string nombre = clip.name.ToLower();
+            // caminar, correr y estar parado se repiten sin fin
+            clip.loopTime = nombre.Contains("walk") || nombre.Contains("run") || nombre.Contains("idle");
+            // la animación no mueve ni gira al personaje: eso lo hace el juego ("bake into pose")
+            clip.lockRootRotation = true;
+            clip.lockRootHeightY = true;
+            clip.lockRootPositionXZ = true;
+        }
+        modelo.clipAnimations = clips;
     }
 
     void OnPreprocessTexture()
     {
-        if (!assetPath.StartsWith(CarpetaTexturas) || !assetImporter.importSettingsMissing)
+        if (!assetPath.StartsWith(CarpetaArte) || !assetImporter.importSettingsMissing)
         {
             return;
         }
@@ -40,13 +76,28 @@ public class ImportacionArte : AssetPostprocessor
         string nombre = Path.GetFileNameWithoutExtension(assetPath);
         textura.maxTextureSize = 2048;
         textura.mipmapEnabled = true;
-        textura.wrapMode = TextureWrapMode.Repeat;  // los pisos se repiten (tiling)
+        // los pisos y muros se repiten (tiling); las de personajes no
+        textura.wrapMode = assetPath.StartsWith(CarpetaPersonajes) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
 
-        if (nombre.EndsWith("_Normal"))
+        if (nombre.Contains("Vegetacion"))
+        {
+            // hojas con alfa recortado: que no se "adelgacen" al verse de lejos (mipmaps)
+            textura.alphaIsTransparency = true;
+            textura.mipMapsPreserveCoverage = true;
+            textura.alphaTestReferenceValue = 0.5f;
+        }
+        if (nombre.Contains("_Cielo_"))
+        {
+            // panorama del cielo (Skybox): a 4K y sin mipmaps para que no se vea la costura
+            textura.maxTextureSize = 4096;
+            textura.mipmapEnabled = false;
+            return;
+        }
+        if (nombre.EndsWith("_Normal") || nombre.Contains("_Normal_"))   // "_Normal" o "_Normal_Olas"
         {
             textura.textureType = TextureImporterType.NormalMap;
         }
-        else if (nombre.EndsWith("_Mask"))
+        else if (nombre.EndsWith("_Mask") || nombre.EndsWith("_MetallicSmoothness"))
         {
             textura.textureType = TextureImporterType.Default;
             textura.sRGBTexture = false;            // datos (metal, oclusión, suavidad), no color
