@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -86,10 +87,33 @@ public static class ConectarServidor
         hud.movimiento = jugador;
         hud.interaccion = interaccion;
 
+        // Pantalla de victoria o derrota
+        PantallaFinal final = simulacion.AddComponent<PantallaFinal>();
+        final.cliente = cliente;
+
+        // "Reintentar" recarga la escena: para eso debe estar en la lista de escenas del build
+        string rutaEscena = simulacion.scene.path != "" ? simulacion.scene.path : RutaEscena;
+        PonerEscenaPrincipal(rutaEscena);
+
         EditorSceneManager.MarkSceneDirty(simulacion.scene);
         Selection.activeGameObject = simulacion;
         Debug.Log("Simulación lista. Levanta el servidor, guarda la escena y dale Play.");
         return true;
+    }
+
+    static void PonerEscenaPrincipal(string ruta)
+    {
+        // La escena del juego queda primera en la lista; se quita la SampleScene de la plantilla
+        List<EditorBuildSettingsScene> escenas = new List<EditorBuildSettingsScene>();
+        escenas.Add(new EditorBuildSettingsScene(ruta, true));
+        foreach (EditorBuildSettingsScene s in EditorBuildSettings.scenes)
+        {
+            if (s.path != ruta && s.path != "Assets/Scenes/SampleScene.unity")
+            {
+                escenas.Add(s);
+            }
+        }
+        EditorBuildSettings.scenes = escenas.ToArray();
     }
 
     static Material MaterialOpaco(string nombre, Color color)

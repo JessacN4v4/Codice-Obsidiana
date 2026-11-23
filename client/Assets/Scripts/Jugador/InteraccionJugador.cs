@@ -55,6 +55,16 @@ public class InteraccionJugador : MonoBehaviour
 
     void Update()
     {
+        // partida terminada: el jugador se queda quieto y ya no hace nada
+        if (cliente.Estado != null && cliente.Estado.over)
+        {
+            trojeCercano = "";
+            quemando = false;
+            cliente.trojeQuemando = "";
+            movimiento.Bloqueado = true;
+            return;
+        }
+
         trojeCercano = BuscarTrojeCercano();
         bool teclaPresionada = Input.GetKey(teclaQuemar) || Input.GetKey(teclaQuemarAlterna);
         quemando = teclaPresionada && trojeCercano != "";

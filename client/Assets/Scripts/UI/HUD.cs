@@ -85,9 +85,9 @@ public class HUD : MonoBehaviour
             return;
         }
         EstadoDatos estado = cliente.Estado;
-        if (estado == null)
+        if (estado == null || estado.over)
         {
-            return;
+            return;      // al terminar, la PantallaFinal ocupa la pantalla
         }
         DibujarPanel(estado, ancho);
         DibujarMensajes(ancho);
