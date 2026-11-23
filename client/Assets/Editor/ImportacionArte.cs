@@ -56,8 +56,10 @@ public class ImportacionArte : AssetPostprocessor
         foreach (ModelImporterClipAnimation clip in clips)
         {
             string nombre = clip.name.ToLower();
-            // caminar, correr y estar parado se repiten sin fin
-            clip.loopTime = nombre.Contains("walk") || nombre.Contains("run") || nombre.Contains("idle");
+            // caminar, correr, estar parado y moverse de lado se repiten sin fin
+            // (los FBX de Mixamo llaman al clip "mixamo.com": entonces cuenta el nombre del archivo)
+            string texto = nombre + " " + Path.GetFileNameWithoutExtension(assetPath).ToLower();
+            clip.loopTime = texto.Contains("walk") || texto.Contains("run") || texto.Contains("idle") || texto.Contains("strafe");
             // la animación no mueve ni gira al personaje: eso lo hace el juego ("bake into pose")
             clip.lockRootRotation = true;
             clip.lockRootHeightY = true;
