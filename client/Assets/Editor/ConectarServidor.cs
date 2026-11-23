@@ -76,6 +76,8 @@ public static class ConectarServidor
         }
         interaccion.cliente = cliente;
         interaccion.movimiento = jugador;
+        interaccion.materialPiedra = MaterialOpaco("Piedra", new Color(0.45f, 0.43f, 0.40f));
+        interaccion.materialRuido = MaterialTransparente("OndaRuido", new Color(0.95f, 0.92f, 0.8f, 0.35f));
         EditorUtility.SetDirty(interaccion);
 
         EditorSceneManager.MarkSceneDirty(simulacion.scene);

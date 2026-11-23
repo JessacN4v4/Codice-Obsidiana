@@ -32,6 +32,12 @@ public class ClienteSimulacion : MonoBehaviour
 
     private string idSesion;
 
+    // ¿Hay una piedra esperando a mandarse en el siguiente paso?
+    public bool PiedraPendiente
+    {
+        get { return hayPiedra; }
+    }
+
     public void LanzarPiedra(Vector3 destinoEnMundo)
     {
         hayPiedra = true;

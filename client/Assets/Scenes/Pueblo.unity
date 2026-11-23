@@ -444,78 +444,6 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 40561527}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
---- !u!1 &62348463
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 62348466}
-  - component: {fileID: 62348465}
-  - component: {fileID: 62348464}
-  m_Layer: 0
-  m_Name: Simulacion
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &62348464
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 62348463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ae1f718f85cca614fa3aa58beace4a6a, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VistaAgentes
-  cliente: {fileID: 62348465}
-  materialGuardia: {fileID: 2100000, guid: 8a3fa8ca9bbebf240825365d0899eb18, type: 2}
-  materialGuardiaCanoa: {fileID: 2100000, guid: 741e2c3099e136e4fa5c02b916db03d2, type: 2}
-  materialAldeano: {fileID: 2100000, guid: 52b09aff78fb96c40ac9e70185a5a4eb, type: 2}
-  materialCargador: {fileID: 2100000, guid: 08070063325a05440b40a95bfc277f2f, type: 2}
-  materialCono: {fileID: 2100000, guid: 5ac53f46243683f438116f1576fd6803, type: 2}
-  conoTranquilo: {r: 1, g: 0.95, b: 0.7, a: 0.18}
-  conoInvestigando: {r: 1, g: 0.6, b: 0.1, a: 0.28}
-  conoPersiguiendo: {r: 1, g: 0.1, b: 0.05, a: 0.35}
-  trojeNormal: {r: 0.85, g: 0.45, b: 0.15, a: 1}
-  trojeArdiendo: {r: 1, g: 0.15, b: 0.05, a: 1}
---- !u!114 &62348465
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 62348463}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 66552051f05739641be8062afbba2dfc, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ClienteSimulacion
-  urlServidor: http://127.0.0.1:8000
-  jugador: {fileID: 120464975}
-  intervalo: 0.1
-  trojeQuemando: 
---- !u!4 &62348466
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 62348463}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &66578021
 GameObject:
   m_ObjectHideFlags: 0
@@ -1230,11 +1158,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5e57cbb45b77014fb4c0acc95569b42, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::InteraccionJugador
-  cliente: {fileID: 62348465}
+  cliente: {fileID: 1124907430}
   movimiento: {fileID: 120464975}
   alcanceQuemar: 2.7
   teclaQuemar: 101
   teclaQuemarAlterna: 32
+  teclaPiedra: 113
+  alcancePiedra: 13
+  radioRuido: 11.5
+  materialPiedra: {fileID: 2100000, guid: 6ddda6254398360479895d852986f1de, type: 2}
+  materialRuido: {fileID: 2100000, guid: a303f01a941aa0342825f63aca183097, type: 2}
 --- !u!1 &120640760
 GameObject:
   m_ObjectHideFlags: 0
@@ -10517,6 +10450,78 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1118563426}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1124907428
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1124907431}
+  - component: {fileID: 1124907430}
+  - component: {fileID: 1124907429}
+  m_Layer: 0
+  m_Name: Simulacion
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1124907429
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1124907428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ae1f718f85cca614fa3aa58beace4a6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VistaAgentes
+  cliente: {fileID: 1124907430}
+  materialGuardia: {fileID: 2100000, guid: 8a3fa8ca9bbebf240825365d0899eb18, type: 2}
+  materialGuardiaCanoa: {fileID: 2100000, guid: 741e2c3099e136e4fa5c02b916db03d2, type: 2}
+  materialAldeano: {fileID: 2100000, guid: 52b09aff78fb96c40ac9e70185a5a4eb, type: 2}
+  materialCargador: {fileID: 2100000, guid: 08070063325a05440b40a95bfc277f2f, type: 2}
+  materialCono: {fileID: 2100000, guid: 5ac53f46243683f438116f1576fd6803, type: 2}
+  conoTranquilo: {r: 1, g: 0.95, b: 0.7, a: 0.18}
+  conoInvestigando: {r: 1, g: 0.6, b: 0.1, a: 0.28}
+  conoPersiguiendo: {r: 1, g: 0.1, b: 0.05, a: 0.35}
+  trojeNormal: {r: 0.85, g: 0.45, b: 0.15, a: 1}
+  trojeArdiendo: {r: 1, g: 0.15, b: 0.05, a: 1}
+--- !u!114 &1124907430
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1124907428}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66552051f05739641be8062afbba2dfc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ClienteSimulacion
+  urlServidor: http://127.0.0.1:8000
+  jugador: {fileID: 120464975}
+  intervalo: 0.1
+  trojeQuemando: 
+--- !u!4 &1124907431
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1124907428}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1140731640
 GameObject:
   m_ObjectHideFlags: 0
@@ -18801,4 +18806,4 @@ SceneRoots:
   - {fileID: 432383451}
   - {fileID: 1487970404}
   - {fileID: 120464980}
-  - {fileID: 62348466}
+  - {fileID: 1124907431}
