@@ -15,6 +15,11 @@ using UnityEngine.Networking;
 /// servidor, para que lo que se ve coincida con lo que el guardia de verdad ve.
 /// Además de los rayos parejos, se lanzan rayos justo a los lados de cada esquina de los
 /// obstáculos, para que el borde de la sombra salga recto y no en escalones.
+///
+/// La sospecha se pinta en el cono de naranja, desde el guardia hacia el borde del alcance
+/// (de rojo cuando ya te persigue):
+/// - Fase 1: solo en los guardias que te están viendo, hasta donde va la sospecha del pueblo.
+/// - Fase 2: cada guardia con su propia alerta. Si te persigue, el cono queda rojo completo.
 /// </summary>
 public class VistaAgentes : MonoBehaviour
 {
@@ -34,10 +39,11 @@ public class VistaAgentes : MonoBehaviour
     public GameObject[] modelosAldeanos;   // se reparten entre los aldeanos de la plaza
     public RuntimeAnimatorController controlador;   // parado / caminar / correr
 
-    [Header("Color del cono según el estado del guardia")]
+    [Header("Color del cono y de la sospecha que se pinta en él")]
     public Color conoTranquilo = new Color(1f, 0.95f, 0.7f, 0.18f);
-    public Color conoInvestigando = new Color(1f, 0.6f, 0.1f, 0.28f);
-    public Color conoPersiguiendo = new Color(1f, 0.1f, 0.05f, 0.35f);
+    public Color colorSospecha = new Color(1f, 0.5f, 0.05f, 0.5f);      // naranja mientras sube la sospecha
+    public Color colorPersecucion = new Color(1f, 0.1f, 0.05f, 0.5f);   // rojo cuando ya te persigue
+    public float velocidadRelleno = 1.5f;  // qué tan rápido sigue el rojo a la sospecha (fracción del cono por segundo)
 
     [Header("Trojes")]
     public Color trojeNormal = new Color(0.85f, 0.45f, 0.15f);
@@ -61,7 +67,10 @@ public class VistaAgentes : MonoBehaviour
         public Quaternion girarDesde;
         public Quaternion girarHacia;
         public Mesh mallaCono;             // solo guardias: se rehace cada frame
-        public Material materialCono;      // copia propia para cambiarle el color
+        public Material materialCono;      // copia propia para pintarle su sospecha
+        public float sospecha;             // lo que se ve pintado en el cono (0 a 1)
+        public float sospechaObjetivo;     // lo que dice el servidor (0 a 1)
+        public bool persiguiendo;          // el cono se pinta de rojo en vez de naranja
     }
 
     private Dictionary<int, Visual> guardias = new Dictionary<int, Visual>();
@@ -141,7 +150,8 @@ public class VistaAgentes : MonoBehaviour
                 guardias[g.id] = v;
             }
             NuevoDestino(v, g.x, g.y, g.face);
-            v.materialCono.SetColor("_BaseColor", ColorDelCono(g.state));
+            v.sospechaObjetivo = SospechaDelGuardia(g, estado);
+            v.persiguiendo = g.state == "chase";
         }
 
         foreach (AldeanoDatos a in estado.villagers)
@@ -159,6 +169,20 @@ public class VistaAgentes : MonoBehaviour
         {
             PintarTroje(t);
         }
+    }
+
+    /// <summary>Hasta dónde se pinta de rojo el cono de este guardia (0 a 1).</summary>
+    float SospechaDelGuardia(GuardiaDatos g, EstadoDatos estado)
+    {
+        if (g.state == "chase")
+        {
+            return 1f;
+        }
+        if (estado.phase == 1)
+        {
+            return g.seeing ? estado.suspicion / 100f : 0f;   // la sospecha es del pueblo: se ve en quien te mira
+        }
+        return g.awareness / 100f;
     }
 
     void NuevoDestino(Visual v, float x, float y, float angulo)
@@ -261,6 +285,13 @@ public class VistaAgentes : MonoBehaviour
         malla.SetColors(colores);
         malla.SetTriangles(triangulos, 0);
         malla.RecalculateBounds();
+
+        // 3. la sospecha pintada de rojo desde el guardia (sube y baja suave, no a saltos)
+        v.sospecha = Mathf.MoveTowards(v.sospecha, v.sospechaObjetivo, velocidadRelleno * Time.deltaTime);
+        v.materialCono.SetFloat("_Progreso", v.sospecha);
+        v.materialCono.SetColor("_ColorSospecha", v.persiguiendo ? colorPersecucion : colorSospecha);
+        v.materialCono.SetVector("_Origen", v.raiz.transform.position);
+        v.materialCono.SetFloat("_Alcance", R * Mapa.UnidadesPorPixel);
     }
 
     bool CercaDelCono(Vector2 origen, float R, Rect r)
@@ -377,6 +408,7 @@ public class VistaAgentes : MonoBehaviour
         cono.AddComponent<MeshFilter>().sharedMesh = v.mallaCono;
         MeshRenderer dibujo = cono.AddComponent<MeshRenderer>();
         v.materialCono = new Material(materialCono);
+        v.materialCono.SetColor("_BaseColor", conoTranquilo);
         dibujo.sharedMaterial = v.materialCono;
         dibujo.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         dibujo.receiveShadows = false;
@@ -453,19 +485,6 @@ public class VistaAgentes : MonoBehaviour
         v.girarDesde = raiz.transform.rotation;
         v.girarHacia = raiz.transform.rotation;
         return v;
-    }
-
-    Color ColorDelCono(string estado)
-    {
-        if (estado == "chase")
-        {
-            return conoPersiguiendo;
-        }
-        if (estado == "investigate" || estado == "search")
-        {
-            return conoInvestigando;
-        }
-        return conoTranquilo;
     }
 
     void PintarTroje(TrojeEstado t)

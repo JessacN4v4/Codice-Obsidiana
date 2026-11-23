@@ -30,6 +30,7 @@ public class GuardiaDatos
     public float y;
     public float face;        // ángulo en radianes (0 = este, +pi/2 = sur)
     public float awareness;   // alerta individual en fase 2 (0 a 100)
+    public bool seeing;       // ¿ve al jugador en este momento?
 }
 
 [Serializable]

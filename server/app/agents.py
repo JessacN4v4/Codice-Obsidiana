@@ -358,6 +358,7 @@ class Guard(Walker):
             "y": round(self.pos[1], 1),
             "face": round(self.face, 3),
             "awareness": round(self.awareness, 1),
+            "seeing": self.seeing,
         }
 
 

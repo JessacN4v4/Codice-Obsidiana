@@ -156,7 +156,7 @@ public class ControlDeCamaras : MonoBehaviour
 
         // mouse siempre activo en la cámara de seguimiento: se captura solo, Esc lo suelta
         bool terminada = cliente != null && cliente.Estado != null && cliente.Estado.over;
-        if (EnSeguimiento && !terminada)
+        if (EnSeguimiento && !terminada && !PantallaMision.Abierta)   // con la pantalla de misión: mouse libre para el botón
         {
             if (Input.GetKeyDown(KeyCode.Escape))
             {
