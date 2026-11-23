@@ -24,8 +24,46 @@ public static class PintarTerreno
     const string CarpetaTerreno = "Assets/Art/Terreno";
     const string RutaDatos = "Assets/Art/Terreno/TerrenoPueblo.asset";
     const string RutaEscena = "Assets/Scenes/Pueblo.unity";
-    const int Resolucion = 1024;                   // texels del mapa de pesos (~10 cm cada uno)
+    const int Resolucion = 1024;                   // texels del mapa de pesos (~13 cm cada uno)
     const float M = 20f;                           // 1 metro = 20 px del mapa
+
+    // Terreno decorativo fuera del mapa jugable (metros). Las paredes invisibles del graybox
+    // siguen en el borde del mapa: el jugador no puede salir.
+    public const float ExtraEste = 50f;
+    public const float ExtraSur = 30f;
+    public const float ExtraNorte = 3f;            // al norte empieza el agua: solo una franja de orilla
+
+    // Caminitos que salen del pueblo hacia afuera (px del mapa; el mapa jugable mide 2000 x 1300)
+    public static readonly Vector2[][] CaminitosExteriores =
+    {
+        new Vector2[] { new Vector2(2000, 700), new Vector2(2300, 690), new Vector2(2600, 725), new Vector2(3000, 705) },                     // la entrada del este sigue
+        new Vector2[] { new Vector2(2300, 690), new Vector2(2440, 1000), new Vector2(2510, 1400), new Vector2(2600, 1900) }, // se desvía al sureste
+        new Vector2[] { new Vector2(1220, 1080), new Vector2(1215, 1300), new Vector2(1170, 1600), new Vector2(1240, 1900) }, // baja al sur
+        new Vector2[] { new Vector2(272, 1175), new Vector2(320, 1400), new Vector2(340, 1650), new Vector2(310, 1900) },   // sigue la orilla del lago
+    };
+    public static readonly float[] AnchoCaminitos = { 36f, 24f, 24f, 22f };
+
+    // Milpas grandes fuera del mapa: (x, y, ancho, alto) en px. Solo decoración.
+    // Las usa también ColocarDecoracion para poner las plantas encima.
+    // Al sur empiezan 8 m después del borde (y >= 1460) para no tapar al jugador desde la cámara.
+    public static readonly Vector4[] MilpasExteriores =
+    {
+        new Vector4(2100, 150, 300, 300),     // este, arriba de la entrada
+        new Vector4(2550, 250, 350, 300),     // este, arriba de la entrada (más lejos)
+        new Vector4(2650, 950, 300, 350),     // este, al oriente del caminito del sureste
+        new Vector4(2120, 1000, 260, 350),    // este, al poniente del caminito del sureste
+        new Vector4(600, 1480, 300, 300),     // sur
+        new Vector4(1450, 1500, 350, 300),    // sur, entre los caminitos
+        new Vector4(1950, 1550, 300, 300),    // sur, hacia el este
+    };
+
+    // Casas fuera del mapa (x, y, ancho, alto en px) y su modelo. Solo decoración.
+    public static readonly Vector4[] CasasExteriores =
+    {
+        new Vector4(2420, 560, 80, 60),       // este, junto a la entrada (4 x 3 m)
+        new Vector4(960, 1390, 70, 60),       // sur, 4.5 m después del borde (3.5 x 3 m)
+    };
+    public static readonly string[] ModelosCasasExteriores = { "Casas/SM_Casa_T5", "Casas/SM_Casa_T6" };
 
     // Capas (en este orden)
     const int TierraVolcanica = 0;
@@ -113,7 +151,9 @@ public static class PintarTerreno
         }
         TerrainData datos = new TerrainData();
         datos.heightmapResolution = 33;            // es plano: basta con poca resolución
-        datos.size = new Vector3(mapa.worldW * Mapa.UnidadesPorPixel, 1f, mapa.worldH * Mapa.UnidadesPorPixel);
+        // el mapa jugable (100 x 65 m) más la franja decorativa al este, al sur y al norte
+        datos.size = new Vector3(mapa.worldW * Mapa.UnidadesPorPixel + ExtraEste, 1f,
+                                 mapa.worldH * Mapa.UnidadesPorPixel + ExtraSur + ExtraNorte);
         // primero se guarda como archivo y DESPUÉS se pinta: si se pinta antes, el pintado
         // solo vive en memoria y se pierde al dar Play
         AssetDatabase.CreateAsset(datos, RutaDatos);
@@ -141,7 +181,7 @@ public static class PintarTerreno
         terreno.name = "Terreno";
         // el Terrain crece desde su esquina sur-oeste: la esquina noroeste del mapa es (0, 0, 0)
         // 1 cm arriba del suelo del graybox para que no se encimen
-        terreno.transform.position = new Vector3(0f, 0.01f, -datos.size.z);
+        terreno.transform.position = new Vector3(0f, 0.01f, ExtraNorte - datos.size.z);
         Object.DestroyImmediate(terreno.GetComponent<TerrainCollider>());   // la colisión es la del graybox
         Undo.RegisterCreatedObjectUndo(terreno, "Pintar terreno");
 
@@ -234,8 +274,11 @@ public static class PintarTerreno
             for (int col = 0; col < Resolucion; col++)
             {
                 // fila 0 = borde sur del mapa (y = worldH); última fila = borde norte (y = 0)
-                float x = col / (float)(Resolucion - 1) * mapa.worldW;
-                float y = mapa.worldH - fila / (float)(Resolucion - 1) * mapa.worldH;
+                // en px del mapa; fuera del mapa jugable x pasa de worldW, y pasa de worldH (sur) o es negativa (norte)
+                float anchoPx = mapa.worldW + ExtraEste * M;
+                float altoPx = mapa.worldH + (ExtraSur + ExtraNorte) * M;
+                float x = col / (float)(Resolucion - 1) * anchoPx;
+                float y = mapa.worldH + ExtraSur * M - fila / (float)(Resolucion - 1) * altoPx;
 
                 for (int c = 0; c < numeroCapas; c++)
                 {
@@ -249,6 +292,7 @@ public static class PintarTerreno
                 PintarPatios(w, casasFuera, x, y);
                 PintarPlazaYYacata(w, mapa, yacata, x, y);
                 PintarCaminos(w, mapa, x, y);
+                PintarExterior(w, x, y);
                 foreach (Tramo t in tramos)
                 {
                     float d = DistanciaASegmento(x, y, t.a, t.b) - t.ancho / 2f + Irregular(x, y, 0.25f * M, 1f / 30f, 4.2f);
@@ -338,6 +382,46 @@ public static class PintarTerreno
         }
         dYacata += Irregular(x, y, 0.4f * M, 1f / 25f, 15.2f);
         Pintar(w, Lajas, Borde(dYacata, 1.2f * M, 2.2f * M));
+    }
+
+    static void PintarExterior(float[] w, float x, float y)
+    {
+        // orilla del agua del norte (el agua empieza justo afuera del borde norte del mapa)
+        float dNorte = y + Irregular(x, y, 0.8f * M, 1f / 45f, 22.4f);
+        Pintar(w, OrillaLago, Borde(dNorte, 0.8f * M, 3f * M));
+
+        // suelo de milpa bajo las milpas grandes de afuera
+        foreach (Vector4 m in MilpasExteriores)
+        {
+            float dx = Mathf.Max(m.x - x, 0f, x - (m.x + m.z));
+            float dy = Mathf.Max(m.y - y, 0f, y - (m.y + m.w));
+            float d = Mathf.Sqrt(dx * dx + dy * dy) + Irregular(x, y, 1f * M, 1f / 50f, 50f);
+            Pintar(w, SueloMilpa, Borde(d, 0.5f * M, 2.2f * M));
+        }
+
+        // patio de tierra apisonada alrededor de las casas de afuera
+        foreach (Vector4 c in CasasExteriores)
+        {
+            float dx = Mathf.Max(c.x - x, 0f, x - (c.x + c.z));
+            float dy = Mathf.Max(c.y - y, 0f, y - (c.y + c.w));
+            float d = Mathf.Sqrt(dx * dx + dy * dy) + Irregular(x, y, 0.6f * M, 1f / 30f, 60f);
+            Pintar(w, TierraApisonada, 0.9f * Borde(d, 0.6f * M, 2f * M));
+        }
+
+        // caminitos que salen del pueblo
+        for (int i = 0; i < CaminitosExteriores.Length; i++)
+        {
+            Vector2[] puntos = CaminitosExteriores[i];
+            float distancia = float.MaxValue;
+            for (int k = 0; k < puntos.Length - 1; k++)
+            {
+                distancia = Mathf.Min(distancia, DistanciaASegmento(x, y, puntos[k], puntos[k + 1]));
+            }
+            float medioAncho = AnchoCaminitos[i] / 2f * (0.8f + 0.4f * Ruido(x, y, 1f / 100f, 30f + i));
+            float d = distancia - medioAncho + Irregular(x, y, 0.4f * M, 1f / 30f, 40f + i);
+            Pintar(w, TierraApisonada, 0.45f * Borde(d, 0f, 0.9f * M));
+            Pintar(w, Sendero, 0.9f * Borde(d, 0f, 0.4f * M));
+        }
     }
 
     static void PintarCaminos(float[] w, MapaDatos mapa, float x, float y)

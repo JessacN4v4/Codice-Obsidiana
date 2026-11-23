@@ -84,6 +84,12 @@ public static class ColocarDecoracion
         DecorarCasas(Grupo("Casas", raiz.transform));
         DecorarAlmacenes(Grupo("Almacenes", raiz.transform));
         DecorarOrilla(Grupo("Orilla", raiz.transform));
+        DecorarMilpasExteriores(Grupo("MilpasExteriores", raiz.transform));   // al final: no cambia lo anterior
+        PrepararMaterialVegetacion();
+        DecorarCasasExteriores(Grupo("CasasExteriores", raiz.transform));
+        DecorarRincones(Grupo("Rincones", raiz.transform));
+        DecorarVegetacion(Grupo("Vegetacion", raiz.transform));
+        DecorarVegetacionInterior(Grupo("VegetacionInterior", raiz.transform));
 
         EditorSceneManager.MarkSceneDirty(raiz.scene);
         Selection.activeGameObject = raiz;
@@ -265,6 +271,350 @@ public static class ColocarDecoracion
             Poner("Casas/SM_Fogon_Comal", fogon, 0f, padre);
             Poner("Mercado/SM_Olla_Roja", fogon + new Vector2(0.75f, 0.2f) * M, 0f, padre);
             Poner("Mercado/SM_Cantaro_Crema", fogon + new Vector2(-0.75f, 0.25f) * M, 0f, padre);
+        }
+    }
+
+    // ---------- milpas grandes fuera del mapa ----------
+    static void DecorarMilpasExteriores(Transform padre)
+    {
+        // Cada milpa es una cuadrícula de parcelas de ~4.5 x 5 m (variantes alternadas, giradas
+        // 0° o 180°). Algunas esquinas se dejan vacías para que el borde no quede cuadrado.
+        string[] parcelas = { "Milpa/SM_Milpa_Parcela", "Milpa/SM_Maizal_0", "Milpa/SM_Maizal_2", "Milpa/SM_Maizal_5", "Milpa/SM_Maizal_7" };
+        int numero = 1;
+        foreach (Vector4 r in PintarTerreno.MilpasExteriores)
+        {
+            Transform milpa = Grupo("Milpa_" + numero, padre);
+            numero++;
+            int columnas = Mathf.Max(1, Mathf.RoundToInt(r.z / (4.5f * M)));
+            int filas = Mathf.Max(1, Mathf.RoundToInt(r.w / (5f * M)));
+            for (int i = 0; i < columnas; i++)
+            {
+                for (int j = 0; j < filas; j++)
+                {
+                    bool esquina = (i == 0 || i == columnas - 1) && (j == 0 || j == filas - 1);
+                    if (esquina && azar.NextDouble() < 0.35)
+                    {
+                        continue;
+                    }
+                    Vector2 p = new Vector2(r.x + (i + 0.5f) * r.z / columnas + Rango(-0.3f, 0.3f) * M,
+                                            r.y + (j + 0.5f) * r.w / filas + Rango(-0.3f, 0.3f) * M);
+                    Poner(parcelas[azar.Next(parcelas.Length)], p, azar.Next(2) * 180f, milpa);
+                }
+            }
+        }
+    }
+
+    // ---------- vegetación seca fuera del mapa ----------
+    static readonly string[] Pastos = { "Vegetacion/SM_Hierba_Seca_01", "Vegetacion/SM_Hierba_Seca_02", "Vegetacion/SM_Hierba_Seca_03" };
+
+    static void DecorarVegetacion(Transform padre)
+    {
+        List<Vector2> usados = new List<Vector2>();
+        // grupitos de pasto seco (3 a 5 macollos juntos se ven más naturales que sueltos)
+        foreach (Vector2 centro in PuntosAfuera(70, 2.5f * M, 0.6f * M, usados))
+        {
+            int cuantos = 3 + azar.Next(3);
+            for (int k = 0; k < cuantos; k++)
+            {
+                Vector2 p = centro + new Vector2(Rango(-1.2f, 1.2f), Rango(-1.2f, 1.2f)) * M;
+                if (LibreAfuera(p, 0.4f * M))
+                {
+                    PonerPlanta(Pastos[azar.Next(Pastos.Length)], p, padre);
+                }
+            }
+        }
+        // zacatones sueltos, y pocos magueyes y nopales
+        foreach (Vector2 p in PuntosAfuera(30, 2.5f * M, 0.9f * M, usados))
+        {
+            PonerPlanta("Vegetacion/SM_Zacate_Alto", p, padre);
+        }
+        foreach (Vector2 p in PuntosAfuera(35, 3.5f * M, 1.1f * M, usados))
+        {
+            PonerPlanta("Vegetacion/SM_Maguey", p, padre);
+        }
+        foreach (Vector2 p in PuntosAfuera(12, 4f * M, 0.5f * M, usados))
+        {
+            PonerPlanta("Vegetacion/SM_Nopal", p, padre);
+        }
+    }
+
+    static void PonerPlanta(string modelo, Vector2 p, Transform padre)
+    {
+        GameObject planta = Poner(modelo, p, Rango(0f, 360f), padre);
+        if (planta != null)
+        {
+            planta.transform.localScale = Vector3.one * Rango(0.85f, 1.2f);
+        }
+    }
+
+    /// <summary>Hasta "cuantos" puntos libres al azar fuera del mapa, separados al menos "separacion".</summary>
+    static List<Vector2> PuntosAfuera(int cuantos, float separacion, float radio, List<Vector2> usados)
+    {
+        List<Vector2> puntos = new List<Vector2>();
+        float derecha = mapa.worldW + PintarTerreno.ExtraEste * M - 1f * M;
+        float abajo = mapa.worldH + PintarTerreno.ExtraSur * M - 1f * M;
+        for (int intento = 0; intento < cuantos * 60 && puntos.Count < cuantos; intento++)
+        {
+            Vector2 p = new Vector2(Rango(0f, derecha), Rango(1f * M, abajo));
+            if (!LibreAfuera(p, radio) || MasCercaQue(p, usados, separacion))
+            {
+                continue;
+            }
+            puntos.Add(p);
+            usados.Add(p);
+        }
+        return puntos;
+    }
+
+    /// <summary>¿Es un lugar fuera del mapa jugable, en tierra, lejos de caminitos y milpas?</summary>
+    static bool LibreAfuera(Vector2 p, float radio)
+    {
+        bool afuera = p.x > mapa.worldW + 2f * M || p.y > mapa.worldH + 2f * M;
+        if (!afuera)
+        {
+            return false;
+        }
+        if (p.x - radio < OrillaEn(p.y) + 1.5f * M)
+        {
+            return false;                                   // en el agua o pegado a ella
+        }
+        for (int i = 0; i < PintarTerreno.CaminitosExteriores.Length; i++)
+        {
+            Vector2[] puntos = PintarTerreno.CaminitosExteriores[i];
+            for (int k = 0; k < puntos.Length - 1; k++)
+            {
+                float d = DistanciaASegmento(p, puntos[k], puntos[k + 1]) - PintarTerreno.AnchoCaminitos[i] / 2f;
+                if (d < radio + 0.6f * M)
+                {
+                    return false;
+                }
+            }
+        }
+        foreach (Vector4 m in PintarTerreno.MilpasExteriores)
+        {
+            if (DistanciaARect(p, Rect4(m)) < radio + 0.8f * M)
+            {
+                return false;
+            }
+        }
+        foreach (Vector4 c in PintarTerreno.CasasExteriores)
+        {
+            if (DistanciaARect(p, Rect4(c)) < radio + 1.5f * M)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static RectDatos Rect4(Vector4 v)
+    {
+        RectDatos r = new RectDatos();
+        r.x = v.x;
+        r.y = v.y;
+        r.w = v.z;
+        r.h = v.w;
+        return r;
+    }
+
+    // ---------- casas fuera del mapa ----------
+    static void DecorarCasasExteriores(Transform padre)
+    {
+        for (int i = 0; i < PintarTerreno.CasasExteriores.Length; i++)
+        {
+            RectDatos c = Rect4(PintarTerreno.CasasExteriores[i]);
+            Transform casa = Grupo("CasaExterior_" + (i + 1), padre);
+            Poner(PintarTerreno.ModelosCasasExteriores[i], Centro(c), 0f, casa);
+            // fogón al frente (puerta al norte) y leña contra el muro oeste, como las del pueblo
+            Poner("Casas/SM_Fogon_Comal", new Vector2(c.x + c.w - 0.7f * M, c.y - 1.3f * M), Rango(0f, 360f), casa);
+            Poner("Casas/SM_Lena_Pila", new Vector2(c.x - 0.4f * M, c.y + c.h / 2f), 90f, casa);
+            Poner("Mercado/SM_Cantaro_Crema", new Vector2(c.x + c.w / 2f - 0.9f * M, c.y - 0.45f * M), Rango(0f, 360f), casa);
+        }
+    }
+
+    // ---------- rincones del mapa jugable que se veían vacíos ----------
+    static void DecorarRincones(Transform padre)
+    {
+        List<Vector2> puestos = new List<Vector2>();
+
+        // detrás de la yácata: ofrendas (ollas, cántaros, mazorcas), leña para el fuego y magueyes
+        Transform yacata = Grupo("DetrasDeLaYacata", padre);
+        Vector2 ofrenda = new Vector2(1240, 170);
+        string[] ofrendas = { "Mercado/SM_Olla_Roja", "Mercado/SM_Cantaro_Crema", "Mercado/SM_Cantaro_Crema",
+                              "Mercado/SM_Canasto_Mazorcas", "Mercado/SM_Petate", "Casas/SM_Lena_Pila", "Mercado/SM_Calabazas" };
+        foreach (string prop in ofrendas)
+        {
+            PonerAlrededor(prop, ofrenda, 2.2f * M, 0.6f * M, yacata, puestos);
+        }
+        PonerAlrededor("Vegetacion/SM_Maguey", ofrenda, 3.5f * M, 1f * M, yacata, puestos);
+        PonerAlrededor("Vegetacion/SM_Maguey", ofrenda, 3.5f * M, 1f * M, yacata, puestos);
+        PonerAlrededor("Vegetacion/SM_Maguey", new Vector2(1120, 230), 1.5f * M, 1f * M, yacata, puestos);
+        PonerAlrededor("Mercado/SM_Cantaro_Crema", new Vector2(1120, 230), 1.5f * M, 0.4f * M, yacata, puestos);
+        for (int k = 0; k < 6; k++)
+        {
+            PonerAlrededor(Pastos[azar.Next(Pastos.Length)], ofrenda, 4f * M, 0.4f * M, yacata, puestos);
+        }
+
+        // esquina superior derecha (detrás de las casas del norte): cosecha guardada y magueyes
+        Transform esquina = Grupo("EsquinaNoreste", padre);
+        Vector2 cosecha = new Vector2(1780, 130);
+        string[] cosas = { "Trojes/SM_Mazorcas_Monton", "Mercado/SM_Canasto_Vacio", "Mercado/SM_Canasto_Frijol",
+                           "Casas/SM_Lena_Pila", "Mercado/SM_Calabazas", "Milpa/SM_Rastrojo" };
+        foreach (string prop in cosas)
+        {
+            PonerAlrededor(prop, cosecha, 2.2f * M, 0.6f * M, esquina, puestos);
+        }
+        Vector2[] grupos = { cosecha, new Vector2(1930, 330), new Vector2(1640, 110) };
+        foreach (Vector2 g in grupos)
+        {
+            PonerAlrededor("Vegetacion/SM_Maguey", g, 3f * M, 1f * M, esquina, puestos);
+            PonerAlrededor("Vegetacion/SM_Zacate_Alto", g, 3f * M, 0.8f * M, esquina, puestos);
+            for (int k = 0; k < 3; k++)
+            {
+                PonerAlrededor(Pastos[azar.Next(Pastos.Length)], g, 3f * M, 0.4f * M, esquina, puestos);
+            }
+        }
+    }
+
+    /// <summary>Pone el prop en un lugar libre al azar a menos de "radio" del centro (dentro del mapa).</summary>
+    static void PonerAlrededor(string modelo, Vector2 centro, float radio, float radioProp, Transform padre, List<Vector2> puestos)
+    {
+        for (int intento = 0; intento < 30; intento++)
+        {
+            Vector2 p = centro + new Vector2(Rango(-1f, 1f), Rango(-1f, 1f)) * radio;
+            if (LibreDentro(p, radioProp) && !MasCercaQue(p, puestos, radioProp + 0.5f * M))
+            {
+                puestos.Add(p);
+                if (modelo.StartsWith("Vegetacion/"))
+                {
+                    PonerPlanta(modelo, p, padre);
+                }
+                else
+                {
+                    Poner(modelo, p, Rango(0f, 360f), padre);
+                }
+                return;
+            }
+        }
+    }
+
+    // ---------- vegetación dentro del mapa jugable ----------
+    static void DecorarVegetacionInterior(Transform padre)
+    {
+        // pastos bajos dispersos (no esconden a nadie) y magueyes sobre todo cerca de los bordes
+        List<Vector2> usados = new List<Vector2>();
+        for (int i = 0; i < 45; i++)
+        {
+            Vector2 centro = PuntoDentro(2.5f * M, 0.5f * M, usados, false);
+            if (centro.x < 0f)
+            {
+                continue;
+            }
+            int cuantos = 2 + azar.Next(2);
+            for (int k = 0; k < cuantos; k++)
+            {
+                Vector2 p = centro + new Vector2(Rango(-0.9f, 0.9f), Rango(-0.9f, 0.9f)) * M;
+                if (LibreDentro(p, 0.35f * M))
+                {
+                    PonerPlanta(Pastos[azar.Next(Pastos.Length)], p, padre);
+                }
+            }
+        }
+        for (int i = 0; i < 18; i++)
+        {
+            Vector2 p = PuntoDentro(4f * M, 1f * M, usados, i < 12);     // 12 cerca de los bordes, 6 donde sea
+            if (p.x >= 0f)
+            {
+                PonerPlanta("Vegetacion/SM_Maguey", p, padre);
+            }
+        }
+    }
+
+    /// <summary>Un punto libre al azar dentro del mapa (o cerca de un borde); (-1, -1) si no encontró.</summary>
+    static Vector2 PuntoDentro(float separacion, float radio, List<Vector2> usados, bool cercaDeBorde)
+    {
+        for (int intento = 0; intento < 200; intento++)
+        {
+            Vector2 p = new Vector2(Rango(0f, mapa.worldW), Rango(0f, mapa.worldH));
+            if (cercaDeBorde)
+            {
+                float alBorde = Mathf.Min(Mathf.Min(p.x, mapa.worldW - p.x), Mathf.Min(p.y, mapa.worldH - p.y));
+                if (alBorde > 3.5f * M)
+                {
+                    continue;
+                }
+            }
+            if (LibreDentro(p, radio) && !MasCercaQue(p, usados, separacion))
+            {
+                usados.Add(p);
+                return p;
+            }
+        }
+        return new Vector2(-1f, -1f);
+    }
+
+    /// <summary>¿Cabe una planta o prop aquí dentro del mapa sin estorbar? (no caminos, plaza, maizales, almacenes ni obstáculos)</summary>
+    static bool LibreDentro(Vector2 p, float radio)
+    {
+        if (p.x < radio + 0.3f * M || p.y < radio + 0.3f * M || p.x > mapa.worldW - radio - 0.3f * M || p.y > mapa.worldH - radio - 0.3f * M)
+        {
+            return false;
+        }
+        if (!Libre(p, radio))
+        {
+            return false;                       // agua, casas, muros, caminos o almacenes
+        }
+        foreach (RectDatos m in mapa.maize)
+        {
+            if (DistanciaARect(p, m) < radio + 0.3f * M)
+            {
+                return false;
+            }
+        }
+        float plaza = Vector2.Distance(p, new Vector2(mapa.plaza.x, mapa.plaza.y));
+        return plaza > mapa.plaza.r + radio + 0.5f * M;
+    }
+
+    static void PrepararMaterialVegetacion()
+    {
+        // URP Lit con alfa recortado (las hojas son tarjetas con transparencia) y de dos caras
+        const string ruta = "Assets/Art/Materials/M_VegetacionSeca.mat";
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(ruta);
+        if (material == null)
+        {
+            material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+            AssetDatabase.CreateAsset(material, ruta);
+        }
+        material.SetTexture("_BaseMap", AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Art/Textures/Vegetacion/T_VegetacionSeca_BaseColor.png"));
+        material.SetColor("_BaseColor", Color.white);
+        material.SetFloat("_AlphaClip", 1f);
+        material.SetFloat("_Cutoff", 0.5f);
+        material.EnableKeyword("_ALPHATEST_ON");
+        material.SetFloat("_Cull", 0f);                     // se ven las dos caras
+        material.SetFloat("_Smoothness", 0.1f);
+        material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.AlphaTest;
+        material.enableInstancing = true;                   // muchas copias: Unity las dibuja juntas
+        EditorUtility.SetDirty(material);
+
+        // cada FBX de vegetación usa este material en lugar del suyo
+        foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { Modelos + "Vegetacion" }))
+        {
+            string rutaModelo = AssetDatabase.GUIDToAssetPath(guid);
+            ModelImporter importador = (ModelImporter)AssetImporter.GetAtPath(rutaModelo);
+            bool cambio = false;
+            foreach (Object o in AssetDatabase.LoadAllAssetsAtPath(rutaModelo))
+            {
+                Material original = o as Material;
+                if (original != null)
+                {
+                    importador.AddRemap(new AssetImporter.SourceAssetIdentifier(typeof(Material), original.name), material);
+                    cambio = true;
+                }
+            }
+            if (cambio)
+            {
+                importador.SaveAndReimport();
+            }
         }
     }
 

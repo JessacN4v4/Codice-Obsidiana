@@ -78,8 +78,8 @@ AWARENESS_CHASE = 100.0
 # ---------- Aldeanos y cargadores ----------
 VILLAGER_COUNT = 10
 VILLAGER_RADIUS = 9.0
-VILLAGER_SPEED = 42.0
-CARRIER_SPEED = 50.0
+VILLAGER_SPEED = 28.0                   # 1.4 m/s: la velocidad natural de su animación de caminar
+CARRIER_SPEED = 30.0                    # 1.5 m/s
 VILLAGER_PHASE2_MULT = 1.25             # en la huida caminan más rápido
 VILLAGER_SPAWN_RADIUS = 140.0           # aparecen alrededor de la plaza
 VILLAGER_WANDER_RADIUS = 145.0          # y deambulan por ella

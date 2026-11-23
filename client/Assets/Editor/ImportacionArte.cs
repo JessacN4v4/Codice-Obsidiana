@@ -79,7 +79,21 @@ public class ImportacionArte : AssetPostprocessor
         // los pisos y muros se repiten (tiling); las de personajes no
         textura.wrapMode = assetPath.StartsWith(CarpetaPersonajes) ? TextureWrapMode.Clamp : TextureWrapMode.Repeat;
 
-        if (nombre.EndsWith("_Normal"))
+        if (nombre.Contains("Vegetacion"))
+        {
+            // hojas con alfa recortado: que no se "adelgacen" al verse de lejos (mipmaps)
+            textura.alphaIsTransparency = true;
+            textura.mipMapsPreserveCoverage = true;
+            textura.alphaTestReferenceValue = 0.5f;
+        }
+        if (nombre.Contains("_Cielo_"))
+        {
+            // panorama del cielo (Skybox): a 4K y sin mipmaps para que no se vea la costura
+            textura.maxTextureSize = 4096;
+            textura.mipmapEnabled = false;
+            return;
+        }
+        if (nombre.EndsWith("_Normal") || nombre.Contains("_Normal_"))   // "_Normal" o "_Normal_Olas"
         {
             textura.textureType = TextureImporterType.NormalMap;
         }

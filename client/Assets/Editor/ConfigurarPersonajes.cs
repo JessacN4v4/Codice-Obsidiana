@@ -23,8 +23,8 @@ public static class ConfigurarPersonajes
     static readonly string[] Personajes = { "Tariacuri", "Cargador", "Guardia", "GuardiaCanoa", "Artesano", "Mujer", "Campesino" };
 
     // umbrales del blend tree (m/s): parado, caminar, correr
-    const float UmbralCaminar = 2.5f;
-    const float UmbralCorrer = 7f;
+    const float UmbralCaminar = 1.5f;   // velocidad natural de la animación de caminar
+    const float UmbralCorrer = 9f;
 
     [MenuItem("Codice/Configurar personajes")]
     public static void Configurar()
