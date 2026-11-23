@@ -14,13 +14,16 @@
 #   "chase"       persigue al jugador (solo en fase 2)
 #   "search"      busca alrededor de la última posición donde vieron al jugador
 #   "return"      regresa a su puesto o a su ruta
+#
+# Villager: aldeano que deambula por la plaza, o cargador que va y viene de un almacén.
+# Walker: la parte común (caminar con A*), de la que heredan Guard y Villager.
 
 import math
 
 import mesa
 
 from app.geometry import ang_diff, dist
-from app.map_data import CANOE_GUARD, SENTRY, in_maize, zone_at
+from app.map_data import CANOE_GUARD, PLAZA_CENTER, SENTRY, in_maize, zone_at
 from app.navigation import resolve
 from app.params import (
     AGENT_RADIUS, AWARENESS_BASE_RATE, AWARENESS_CHASE, AWARENESS_CROWD_MULT, AWARENESS_DECAY,
@@ -32,54 +35,25 @@ from app.params import (
     SUSPICION_CARRIER_MULT, SUSPICION_DISTANCE_FALLOFF, SUSPICION_INVESTIGATE_THRESHOLD,
     SUSPICION_PUBLIC_CLOSE_RADIUS, SUSPICION_PUBLIC_CLOSE_RATE, SUSPICION_PUBLIC_RUN_PER_ALERT,
     SUSPICION_PUBLIC_RUN_RADIUS, SUSPICION_PUBLIC_RUN_RATE, SUSPICION_RUNNING_MULT,
+    CARRIER_SPEED, CARRIER_WAIT, CARRIER_WAIT_AT_WAREHOUSE, VILLAGER_PHASE2_MULT,
+    VILLAGER_RADIUS, VILLAGER_SPEED, VILLAGER_WAIT_MAX, VILLAGER_WAIT_MIN,
+    VILLAGER_WANDER_RADIUS,
 )
 from app.vision import sees_player, vision_range
 
 
-class Guard(mesa.Agent):
-    def __init__(self, model, spawn):
+class Walker(mesa.Agent):
+    """Persona que camina por el mapa siguiendo rutas de A* (guardias y aldeanos)"""
+
+    def __init__(self, model, pos, radius):
         super().__init__(model)
-        self.role = spawn["role"]
-        self.zone = spawn["zone"]          # almacén al que pertenece (None = pueblo)
-        self.route = list(spawn["route"])
-        self.ri = 0                        # índice del punto de ruta al que va
-        self.pos = spawn["pos"]
-        self.radius = AGENT_RADIUS
-        self.base_face = spawn["face"]     # hacia dónde mira en su puesto
-        self.face = spawn["face"]          # hacia dónde mira ahora
-        self.target_face = spawn["face"]   # hacia dónde quiere girar
+        self.pos = pos
+        self.radius = radius
+        self.face = 0.0                    # hacia dónde mira
         self.path = []                     # puntos que faltan de la ruta de A*
         self.goal = None
         self.stuck = 0.0                   # tiempo que lleva casi sin avanzar
 
-        # percepción
-        self.seeing = False                # ¿ve al jugador en este momento?
-        self.awareness = 0.0               # alerta individual (fase 2), de 0 a 100
-        self.raised_alarm = False          # guardia de la canoa: ya avisó a los demás
-
-        # temporizadores de los estados
-        self.look_t = 0.0                  # investigar: tiempo mirando alrededor
-        self.look_base = 0.0
-        self.search_t = 0.0                # buscar: tiempo que le queda
-        self.pause = 0.0                   # buscar: pausa entre puntos
-        self.repath = 0.0                  # perseguir: cuándo recalcular la ruta
-
-        if self.is_stationary():
-            self.post = spawn["pos"]       # su puesto fijo
-            self.state = "stand"
-        else:
-            self.post = None
-            self.state = "patrol"
-            self.set_path(self.route[0])
-
-    def is_stationary(self):
-        """Centinelas y guardia de la canoa no tienen ruta"""
-        return self.role == SENTRY or self.role == CANOE_GUARD
-
-    def is_canoe_guard(self):
-        return self.role == CANOE_GUARD
-
-    # ---------- movimiento ----------
     def set_path(self, target):
         self.path = self.model.nav.find_path(self.pos, target)
         self.goal = target
@@ -112,6 +86,50 @@ class Guard(mesa.Agent):
             self.path = self.model.nav.find_path(self.pos, self.path[-1])
             self.stuck = 0.0
         return len(self.path) == 0
+
+    def heading_to_path(self):
+        """Ángulo hacia el siguiente punto de la ruta"""
+        nxt = self.path[0]
+        return math.atan2(nxt[1] - self.pos[1], nxt[0] - self.pos[0])
+
+
+class Guard(Walker):
+    def __init__(self, model, spawn):
+        super().__init__(model, spawn["pos"], AGENT_RADIUS)
+        self.role = spawn["role"]
+        self.zone = spawn["zone"]          # almacén al que pertenece (None = pueblo)
+        self.route = list(spawn["route"])
+        self.ri = 0                        # índice del punto de ruta al que va
+        self.base_face = spawn["face"]     # hacia dónde mira en su puesto
+        self.face = spawn["face"]          # hacia dónde mira ahora
+        self.target_face = spawn["face"]   # hacia dónde quiere girar
+
+        # percepción
+        self.seeing = False                # ¿ve al jugador en este momento?
+        self.awareness = 0.0               # alerta individual (fase 2), de 0 a 100
+        self.raised_alarm = False          # guardia de la canoa: ya avisó a los demás
+
+        # temporizadores de los estados
+        self.look_t = 0.0                  # investigar: tiempo mirando alrededor
+        self.look_base = 0.0
+        self.search_t = 0.0                # buscar: tiempo que le queda
+        self.pause = 0.0                   # buscar: pausa entre puntos
+        self.repath = 0.0                  # perseguir: cuándo recalcular la ruta
+
+        if self.is_stationary():
+            self.post = spawn["pos"]       # su puesto fijo
+            self.state = "stand"
+        else:
+            self.post = None
+            self.state = "patrol"
+            self.set_path(self.route[0])
+
+    def is_stationary(self):
+        """Centinelas y guardia de la canoa no tienen ruta"""
+        return self.role == SENTRY or self.role == CANOE_GUARD
+
+    def is_canoe_guard(self):
+        return self.role == CANOE_GUARD
 
     def turn(self, dt):
         """Gira poco a poco hacia target_face"""
@@ -322,8 +340,7 @@ class Guard(mesa.Agent):
             self.follow_path(GUARD_SPEED[self.state], dt)
             # mira hacia donde camina
             if len(self.path) > 0:
-                nxt = self.path[0]
-                self.target_face = math.atan2(nxt[1] - self.pos[1], nxt[0] - self.pos[0])
+                self.target_face = self.heading_to_path()
         # si persigue y te ve, te mira a ti
         if self.state == "chase" and self.seeing:
             player = model.player["pos"]
@@ -341,4 +358,61 @@ class Guard(mesa.Agent):
             "y": round(self.pos[1], 1),
             "face": round(self.face, 3),
             "awareness": round(self.awareness, 1),
+        }
+
+
+class Villager(Walker):
+    """Aldeano del pueblo.
+
+    - Aldeano normal: deambula por la plaza, va a un punto al azar y espera.
+    - Cargador (carrier): recorre su ruta en ciclo entre la plaza y un almacén.
+      Junto a los cargadores el jugador (disfrazado de cargador) levanta menos sospecha.
+    En fase 2 caminan más rápido.
+    """
+
+    def __init__(self, model, pos, carrier=False, route=None, ri=0):
+        super().__init__(model, pos, VILLAGER_RADIUS)
+        self.carrier = carrier
+        self.route = route if route is not None else []
+        self.ri = ri
+        if carrier:
+            self.wait = 0.0
+        else:
+            self.wait = self.random.uniform(0, 2)    # espera antes de moverse
+
+    def step(self):
+        model = self.model
+        if model.over:
+            return
+        dt = model.substep_dt
+        speed = CARRIER_SPEED if self.carrier else VILLAGER_SPEED
+        if model.phase == 2:
+            speed *= VILLAGER_PHASE2_MULT
+
+        if len(self.path) == 0:
+            self.wait -= dt
+            if self.wait > 0:
+                return
+            if self.carrier:
+                # siguiente punto de la ruta; en el almacén (punto 2) se queda más tiempo
+                self.ri = (self.ri + 1) % len(self.route)
+                self.set_path(self.route[self.ri])
+                self.wait = CARRIER_WAIT_AT_WAREHOUSE if self.ri == 2 else CARRIER_WAIT
+            else:
+                target = model.nav.random_near(PLAZA_CENTER, VILLAGER_WANDER_RADIUS, self.random)
+                self.set_path(target)
+                self.wait = self.random.uniform(VILLAGER_WAIT_MIN, VILLAGER_WAIT_MAX)
+
+        if len(self.path) > 0:
+            self.face = self.heading_to_path()
+        self.follow_path(speed, dt)
+
+    def to_dict(self):
+        """Datos que se mandan a Unity (claves en camelCase)"""
+        return {
+            "id": self.unique_id,
+            "carrier": self.carrier,
+            "x": round(self.pos[0], 1),
+            "y": round(self.pos[1], 1),
+            "face": round(self.face, 3),
         }

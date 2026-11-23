@@ -136,6 +136,18 @@ def in_maize(p):
 
 PLAZA_CENTER = (1200, 700)
 PLAZA_RADIUS = 160
+
+# ---------- Cargadores ----------
+# Van de la plaza al almacén y regresan. El punto 2 de cada ruta está dentro del almacén.
+CARRIER_ROUTE_A = [(1300, 780), (1650, 830), (1600, 940), (1650, 830)]
+CARRIER_ROUTE_B = [(1150, 860), (910, 870), (900, 1000), (910, 870)]
+# pos: dónde empieza. ri: índice del punto de ruta en el que empieza.
+CARRIER_SPAWNS = [
+    {"pos": (1300, 780), "ri": 0, "route": CARRIER_ROUTE_A},
+    {"pos": (1600, 940), "ri": 2, "route": CARRIER_ROUTE_A},
+    {"pos": (1480, 800), "ri": 1, "route": CARRIER_ROUTE_A},
+    {"pos": (1150, 860), "ri": 0, "route": CARRIER_ROUTE_B},
+]
 CANOE = (shore_x(1180) + 16, 1180)
 START = (1940, 700)
 

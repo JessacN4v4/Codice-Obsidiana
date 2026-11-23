@@ -14,17 +14,19 @@
 
 import mesa
 
-from app.agents import Guard
+from app.agents import Guard, Villager
 from app.geometry import dist
 from app.map_data import (
-    CANOE, GUARD_SPAWNS, REINFORCEMENT_SPAWNS, START, TROJES, get_zone,
+    CANOE, CARRIER_SPAWNS, GUARD_SPAWNS, PLAZA_CENTER, REINFORCEMENT_SPAWNS, START, TROJES,
+    get_zone,
 )
 from app.navigation import NavGrid
 from app.params import (
     ALARM_DELAY, BURN_DECAY, BURN_REACH, BURN_TIME, CANOE_BOARD_RADIUS, CANOE_MESSAGE_COOLDOWN,
-    FIRE_INVESTIGATE_RADIUS, FIRE_NOISE_RADIUS, RUN_NOISE_INTERVAL, RUN_NOISE_RADIUS,
-    SEARCH_CALL_RADIUS, SEARCH_TIME, SIM_SUBSTEP, STONE_FLIGHT_TIME, STONE_NOISE_RADIUS,
-    STONE_RANGE, STONES, SUSPICION_DECAY, SUSPICION_DECAY_PER_ALERT, SUSPICION_MAX,
+    CROWD_RADIUS, FIRE_INVESTIGATE_RADIUS, FIRE_NOISE_RADIUS, RUN_NOISE_INTERVAL,
+    RUN_NOISE_RADIUS, SEARCH_CALL_RADIUS, SEARCH_TIME, SIM_SUBSTEP, STONE_FLIGHT_TIME,
+    STONE_NOISE_RADIUS, STONE_RANGE, STONES, SUSPICION_DECAY, SUSPICION_DECAY_PER_ALERT,
+    SUSPICION_MAX, VILLAGER_COUNT, VILLAGER_SPAWN_RADIUS,
 )
 
 # La rejilla de navegación es igual para todas las partidas: se construye una sola vez
@@ -75,17 +77,38 @@ class MissionModel(mesa.Model):
         self.player = {"pos": START, "running": False, "lighting": None}
         self.noise_t = 0.0         # fase 2: cada cuánto hace ruido al correr
         self.canoe_message_t = 0.0
-        # Aldeanos cerca del jugador (se calculará cuando haya aldeanos)
+        # Aldeanos cerca del jugador
         self.crowd = 0
         self.crowd_carriers = 0
 
         for spawn in GUARD_SPAWNS:
             Guard(self, spawn)
+        # aldeanos repartidos alrededor de la plaza
+        for _ in range(VILLAGER_COUNT):
+            pos = self.nav.random_near(PLAZA_CENTER, VILLAGER_SPAWN_RADIUS, self.random)
+            Villager(self, pos)
+        # cargadores
+        for c in CARRIER_SPAWNS:
+            Villager(self, c["pos"], carrier=True, route=c["route"], ri=c["ri"])
 
     # ---------- consultas ----------
     def guards(self):
         """Guardias ordenados por id"""
         return sorted(self.agents_by_type[Guard], key=lambda g: g.unique_id)
+
+    def villagers(self):
+        """Aldeanos y cargadores ordenados por id"""
+        return sorted(self.agents_by_type[Villager], key=lambda v: v.unique_id)
+
+    def update_crowd(self):
+        """Cuántos aldeanos (y cuántos cargadores) hay junto al jugador"""
+        self.crowd = 0
+        self.crowd_carriers = 0
+        for v in self.villagers():
+            if dist(v.pos, self.player["pos"]) < CROWD_RADIUS:
+                self.crowd += 1
+                if v.carrier:
+                    self.crowd_carriers += 1
 
     def canoe_guard(self):
         for g in self.guards():
@@ -304,6 +327,7 @@ class MissionModel(mesa.Model):
             dt = self.substep_dt
             self.sim_time += dt
             self.update_lighting(dt)
+            self.update_crowd()
             self.update_run_noise(dt)
 
             self.suspicion_gain = 0.0
@@ -314,6 +338,7 @@ class MissionModel(mesa.Model):
             if self.phase == 1:
                 self.update_suspicion(dt)
                 self.update_alarm_timer(dt)
+            self.agents_by_type[Villager].shuffle_do("step")
             self.update_stones(dt)
             self.check_canoe(dt)
 
@@ -337,4 +362,5 @@ class MissionModel(mesa.Model):
             "events": self.events,
             "trojes": trojes,
             "guards": [g.to_dict() for g in self.guards()],
+            "villagers": [v.to_dict() for v in self.villagers()],
         }

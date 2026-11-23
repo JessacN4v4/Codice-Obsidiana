@@ -75,6 +75,20 @@ AWARENESS_DECAY = 22.0
 AWARENESS_INVESTIGATE = 35.0
 AWARENESS_CHASE = 100.0
 
+# ---------- Aldeanos y cargadores ----------
+VILLAGER_COUNT = 10
+VILLAGER_RADIUS = 9.0
+VILLAGER_SPEED = 42.0
+CARRIER_SPEED = 50.0
+VILLAGER_PHASE2_MULT = 1.25             # en la huida caminan más rápido
+VILLAGER_SPAWN_RADIUS = 140.0           # aparecen alrededor de la plaza
+VILLAGER_WANDER_RADIUS = 145.0          # y deambulan por ella
+VILLAGER_WAIT_MIN = 1.0
+VILLAGER_WAIT_MAX = 4.0
+CARRIER_WAIT = 0.6
+CARRIER_WAIT_AT_WAREHOUSE = 2.5         # se quedan más tiempo dentro del almacén
+CROWD_RADIUS = 48.0                     # aldeanos a esta distancia del jugador son "multitud"
+
 # ---------- Fuego, ruido y alarma ----------
 FIRE_INVESTIGATE_RADIUS = 480.0         # fase 1: guardias a esta distancia van a ver el fuego
 FIRE_NOISE_RADIUS = 260.0               # fase 2: quemar un troje hace ruido
