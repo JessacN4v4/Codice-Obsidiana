@@ -98,7 +98,7 @@ public static class ColocarAmbientacion
         foreach (Transform troje in graybox.Find("Trojes"))
         {
             string id = troje.name.Substring("Troje_".Length);              // "Troje_A" -> "A"
-            if (Poner(Modelos + "Trojes/SM_Troje_" + id + "_Intacto.fbx", troje.position, grupoTrojes))
+            if (CrearTroje(id, troje.position, grupoTrojes))
             {
                 colocados++;
             }
@@ -192,17 +192,145 @@ public static class ColocarAmbientacion
 
     static bool Poner(string ruta, Vector3 posicionCaja, Transform padre)
     {
+        return PonerModelo(ruta, posicionCaja, padre) != null;
+    }
+
+    static GameObject PonerModelo(string ruta, Vector3 posicionCaja, Transform padre)
+    {
         GameObject modelo = AssetDatabase.LoadAssetAtPath<GameObject>(ruta);
         if (modelo == null)
         {
             Debug.LogWarning("No encontré el modelo " + ruta);
-            return false;
+            return null;
         }
         GameObject copia = (GameObject)PrefabUtility.InstantiatePrefab(modelo, padre);
         // misma posición en el suelo que la caja, sin rotar (los modelos ya vienen orientados)
         copia.transform.position = new Vector3(posicionCaja.x, 0f, posicionCaja.z);
         copia.transform.rotation = Quaternion.identity;
+        return copia;
+    }
+
+    // ---------- trojes: modelo intacto + quemado (oculto) + fuego y humo ----------
+    static bool CrearTroje(string id, Vector3 posicion, Transform padre)
+    {
+        // "TrojeModelo_A" y no "Troje_A": ese nombre lo usa la caja del graybox
+        GameObject raizTroje = new GameObject("TrojeModelo_" + id);
+        raizTroje.transform.SetParent(padre, false);
+        raizTroje.transform.position = new Vector3(posicion.x, 0f, posicion.z);
+
+        GameObject intacto = PonerModelo(Modelos + "Trojes/SM_Troje_" + id + "_Intacto.fbx", posicion, raizTroje.transform);
+        GameObject quemado = PonerModelo(Modelos + "Trojes/SM_Troje_" + id + "_Quemado.fbx", posicion, raizTroje.transform);
+        if (intacto == null || quemado == null)
+        {
+            return false;
+        }
+        quemado.SetActive(false);
+
+        TrojeModelo modelo = raizTroje.AddComponent<TrojeModelo>();
+        modelo.id = id;
+        modelo.intacto = intacto;
+        modelo.quemado = quemado;
+        modelo.fuego = CrearFuego(raizTroje.transform);
+        modelo.humo = CrearHumo(raizTroje.transform);
         return true;
+    }
+
+    static ParticleSystem CrearFuego(Transform padre)
+    {
+        ParticleSystem ps = NuevoSistemaDeParticulas("Fuego", padre, 1.2f);
+        ParticleSystem.MainModule principal = ps.main;
+        principal.startLifetime = new ParticleSystem.MinMaxCurve(0.6f, 1.2f);
+        principal.startSpeed = new ParticleSystem.MinMaxCurve(1.5f, 3f);
+        principal.startSize = new ParticleSystem.MinMaxCurve(0.5f, 1.1f);
+        principal.startColor = new ParticleSystem.MinMaxGradient(new Color(1f, 0.55f, 0.1f), new Color(1f, 0.85f, 0.3f));
+        principal.maxParticles = 300;
+
+        ParticleSystem.EmissionModule emision = ps.emission;
+        emision.rateOverTime = 70f;
+
+        ParticleSystem.ShapeModule forma = ps.shape;
+        forma.shapeType = ParticleSystemShapeType.Cone;
+        forma.angle = 12f;
+        forma.radius = 1.0f;                       // del ancho del troje
+
+        // amarillo -> naranja -> gris, y se desvanece
+        ParticleSystem.ColorOverLifetimeModule color = ps.colorOverLifetime;
+        color.enabled = true;
+        color.color = Degradado(new Color(1f, 0.8f, 0.3f), new Color(0.9f, 0.25f, 0.05f), new Color(0.2f, 0.2f, 0.2f), 0.9f, 0.6f, 0f);
+
+        ParticleSystem.SizeOverLifetimeModule tamano = ps.sizeOverLifetime;
+        tamano.enabled = true;
+        tamano.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 1f, 1f, 0.3f));   // se encoge
+        return ps;
+    }
+
+    static ParticleSystem CrearHumo(Transform padre)
+    {
+        ParticleSystem ps = NuevoSistemaDeParticulas("Humo", padre, 3f);
+        ParticleSystem.MainModule principal = ps.main;
+        principal.startLifetime = new ParticleSystem.MinMaxCurve(3f, 5f);
+        principal.startSpeed = new ParticleSystem.MinMaxCurve(0.8f, 1.5f);
+        principal.startSize = new ParticleSystem.MinMaxCurve(1.2f, 2.5f);
+        principal.startColor = new ParticleSystem.MinMaxGradient(new Color(0.25f, 0.24f, 0.22f), new Color(0.45f, 0.43f, 0.4f));
+        principal.maxParticles = 150;
+
+        ParticleSystem.EmissionModule emision = ps.emission;
+        emision.rateOverTime = 14f;
+
+        ParticleSystem.ShapeModule forma = ps.shape;
+        forma.shapeType = ParticleSystemShapeType.Cone;
+        forma.angle = 15f;
+        forma.radius = 0.8f;
+
+        // el viento lo empuja un poco hacia el este
+        ParticleSystem.VelocityOverLifetimeModule viento = ps.velocityOverLifetime;
+        viento.enabled = true;
+        viento.space = ParticleSystemSimulationSpace.World;
+        viento.x = new ParticleSystem.MinMaxCurve(0.6f);
+        viento.y = new ParticleSystem.MinMaxCurve(0f);
+        viento.z = new ParticleSystem.MinMaxCurve(0f);
+
+        ParticleSystem.ColorOverLifetimeModule color = ps.colorOverLifetime;
+        color.enabled = true;
+        color.color = Degradado(Color.white, Color.white, Color.white, 0f, 0.5f, 0f);   // aparece y se desvanece
+
+        ParticleSystem.SizeOverLifetimeModule tamano = ps.sizeOverLifetime;
+        tamano.enabled = true;
+        tamano.size = new ParticleSystem.MinMaxCurve(1f, AnimationCurve.Linear(0f, 0.6f, 1f, 1.6f));  // crece
+        return ps;
+    }
+
+    static ParticleSystem NuevoSistemaDeParticulas(string nombre, Transform padre, float altura)
+    {
+        GameObject objeto = new GameObject(nombre);
+        objeto.transform.SetParent(padre, false);
+        objeto.transform.localPosition = new Vector3(0f, altura, 0f);
+        objeto.transform.localRotation = Quaternion.Euler(-90f, 0f, 0f);    // el cono de emisión apunta hacia arriba
+        ParticleSystem ps = objeto.AddComponent<ParticleSystem>();
+        ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+        ParticleSystem.MainModule principal = ps.main;
+        principal.playOnAwake = false;             // empieza apagado; TrojeModelo lo enciende
+        principal.loop = true;
+        principal.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        Material material = AssetDatabase.LoadAssetAtPath<Material>(
+            "Packages/com.unity.render-pipelines.universal/Runtime/Materials/ParticlesUnlit.mat");
+        if (material == null)
+        {
+            Debug.LogWarning("No encontré el material de partículas de URP.");
+        }
+        objeto.GetComponent<ParticleSystemRenderer>().sharedMaterial = material;
+        return ps;
+    }
+
+    static Gradient Degradado(Color inicio, Color medio, Color fin, float alfaInicio, float alfaMedio, float alfaFin)
+    {
+        Gradient g = new Gradient();
+        g.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(inicio, 0f), new GradientColorKey(medio, 0.5f), new GradientColorKey(fin, 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(alfaInicio, 0f), new GradientAlphaKey(alfaMedio, 0.4f), new GradientAlphaKey(alfaFin, 1f) });
+        return g;
     }
 
     static void Apagar(Transform caja)
