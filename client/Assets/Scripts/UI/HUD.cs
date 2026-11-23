@@ -79,15 +79,21 @@ public class HUD : MonoBehaviour
             {
                 continue;        // la onda en el suelo ya lo muestra
             }
-            Mensaje m = new Mensaje();
-            m.texto = e.message;
-            m.color = ColorDelEvento(e.type);
-            m.hasta = Time.time + duracionMensaje;
-            mensajes.Add(m);
-            if (mensajes.Count > maximoMensajes)
-            {
-                mensajes.RemoveAt(0);
-            }
+            Avisar(e.message, ColorDelEvento(e.type));
+        }
+    }
+
+    /// <summary>Muestra un mensaje arriba al centro (los del servidor y los del propio cliente).</summary>
+    public void Avisar(string texto, Color color)
+    {
+        Mensaje m = new Mensaje();
+        m.texto = texto;
+        m.color = color;
+        m.hasta = Time.time + duracionMensaje;
+        mensajes.Add(m);
+        if (mensajes.Count > maximoMensajes)
+        {
+            mensajes.RemoveAt(0);
         }
     }
 
