@@ -2,6 +2,7 @@
 
 Endpoints:
 - GET  /health                  -> comprobar que el servidor está vivo
+- GET  /map                     -> el mapa completo (para construir la escena en Unity)
 - POST /sessions                -> crea una simulación nueva y regresa su id
 - POST /sessions/{id}/step      -> avanza la simulación y regresa su estado
 """
@@ -11,6 +12,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from app.map_data import map_as_dict
 from app.model import MissionModel
 
 app = FastAPI(title="Códice de Obsidiana — simulación")
@@ -45,6 +47,12 @@ class StepRequest(BaseModel):
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/map")
+def get_map():
+    """El mapa completo: Unity lo usa para construir la escena"""
+    return map_as_dict()
 
 
 @app.post("/sessions", status_code=201)
