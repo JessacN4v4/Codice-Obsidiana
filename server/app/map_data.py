@@ -137,6 +137,16 @@ def in_maize(p):
 PLAZA_CENTER = (1200, 700)
 PLAZA_RADIUS = 160
 
+# ---------- Caminos de tierra (solo decorativos: no cambian la jugabilidad) ----------
+# points: recorrido del camino. width: ancho en px.
+ROADS = [
+    {"points": [(2000, 700), (1600, 690), (1360, 700)], "width": 40},                  # entrada este
+    {"points": [(1045, 700), (800, 590), (600, 470), (600, 430)], "width": 34},       # plaza -> almacén C
+    {"points": [(1300, 770), (1500, 800), (1650, 845)], "width": 32},                 # plaza -> almacén A
+    {"points": [(1150, 850), (1000, 870), (910, 885)], "width": 30},                  # plaza -> almacén B
+    {"points": [(760, 870), (560, 960), (420, 1100), (272, 1175)], "width": 30},      # almacén B -> canoa
+]
+
 # ---------- Cargadores ----------
 # Van de la plaza al almacén y regresan. El punto 2 de cada ruta está dentro del almacén.
 CARRIER_ROUTE_A = [(1300, 780), (1650, 830), (1600, 940), (1650, 830)]
@@ -208,6 +218,10 @@ def map_as_dict():
     trojes = []
     for t in TROJES:
         trojes.append({"id": t["id"], "zone": t["zone"], "rect": rect_as_dict(t["rect"])})
+    roads = []
+    for road in ROADS:
+        points = [{"x": p[0], "y": p[1]} for p in road["points"]]
+        roads.append({"points": points, "width": road["width"]})
     # orilla del lago: un punto cada 20 px
     shore = []
     for y in range(0, WORLD_H + 1, 20):
@@ -223,6 +237,7 @@ def map_as_dict():
         "canoe": {"x": round(CANOE[0], 1), "y": CANOE[1]},
         "start": {"x": START[0], "y": START[1]},
         "shore": shore,
+        "roads": roads,
     }
 
 

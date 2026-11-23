@@ -55,6 +55,13 @@ public class PlazaDatos
 }
 
 [Serializable]
+public class CaminoDatos
+{
+    public PuntoDatos[] points;   // recorrido del camino
+    public float width;           // ancho en px
+}
+
+[Serializable]
 public class MapaDatos
 {
     public float worldW;
@@ -67,4 +74,5 @@ public class MapaDatos
     public PuntoDatos canoe;
     public PuntoDatos start;
     public PuntoDatos[] shore;   // orilla del lago, un punto cada 20 px
+    public CaminoDatos[] roads;  // caminos de tierra (decorativos)
 }

@@ -106,7 +106,7 @@ public static class GeneradorGraybox
     }
 
     // ---------- descarga ----------
-    static string DescargarMapa()
+    public static string DescargarMapa()
     {
         try
         {

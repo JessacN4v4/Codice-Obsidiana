@@ -45,9 +45,16 @@ public class VistaAgentes : MonoBehaviour
     private Dictionary<int, Visual> aldeanos = new Dictionary<int, Visual>();
     private Mesh mallaCono;
 
+    private Dictionary<string, TrojeModelo> modelosTroje = new Dictionary<string, TrojeModelo>();
+
     void Start()
     {
         mallaCono = CrearMallaCono(24);
+        // modelos 3D de los trojes (si ya se colocó la ambientación)
+        foreach (TrojeModelo modelo in FindObjectsByType<TrojeModelo>())
+        {
+            modelosTroje[modelo.id] = modelo;
+        }
         cliente.AlRecibirEstado += AlRecibirEstado;
     }
 
@@ -231,6 +238,17 @@ public class VistaAgentes : MonoBehaviour
 
     void PintarTroje(TrojeEstado t)
     {
+        // con modelo 3D: fuego, humo y cambio al modelo quemado
+        TrojeModelo modelo;
+        if (modelosTroje.TryGetValue(t.id, out modelo))
+        {
+            if (t.burning)
+            {
+                modelo.Encender();
+            }
+            return;
+        }
+        // sin modelo (solo graybox): pintar la caja
         GameObject troje = GameObject.Find("Troje_" + t.id);
         if (troje == null)
         {
