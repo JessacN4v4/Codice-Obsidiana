@@ -85,7 +85,7 @@ public static class ConfigurarPersonajes
         }
         Undo.RecordObject(vista, "Configurar personajes");
         vista.modeloGuardia = Modelo("Guardia");
-        vista.modeloGuardiaCanoa = Modelo("GuardiaCanoa");
+        vista.modeloGuardiaCanoa = Modelo("Guardia");      // el de la canoa viste igual que los demás guardias
         vista.modeloCargador = Modelo("Cargador");
         vista.modelosAldeanos = new GameObject[] { Modelo("Artesano"), Modelo("Mujer"), Modelo("Campesino") };
         vista.controlador = controlador;

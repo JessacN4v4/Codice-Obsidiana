@@ -65,7 +65,7 @@ public static class ConectarServidor
         vista.materialGuardiaCanoa = MaterialOpaco("GuardiaCanoa", new Color(0.45f, 0.08f, 0.25f));
         vista.materialAldeano = MaterialOpaco("Aldeano", new Color(0.89f, 0.84f, 0.72f));
         vista.materialCargador = MaterialOpaco("Cargador", new Color(0.80f, 0.71f, 0.54f));
-        vista.materialCono = MaterialTransparente("ConoVision", new Color(1f, 0.95f, 0.7f, 0.18f));
+        vista.materialCono = AjustarConos.MaterialCono();   // shader Codice/ConoVision
 
         Undo.RegisterCreatedObjectUndo(simulacion, "Conectar con el servidor");
 

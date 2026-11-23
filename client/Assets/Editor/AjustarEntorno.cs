@@ -7,7 +7,8 @@ using UnityEngine.Rendering;
 /// Menú "Codice > Ajustar entorno (agua, cielo y cámara)".
 /// - Agua: genera la superficie del lago al oeste y al norte del pueblo (hasta 50 m afuera, en rectángulo)
 ///   con un material de agua animado, y apaga las franjas azules del graybox (su pared invisible queda).
-/// - Cielo: cielo procedural de Unity (sin texturas), que también da la luz ambiental; sol al sureste.
+/// - Cielo: skybox panorámico de montañas (Art/Textures/Cielo); si no está, cielo procedural de Unity.
+///   El cielo también da la luz ambiental; sol al sureste. Menú aparte: "Codice > Poner skybox de montañas".
 /// - Cámara: un poco más cerca (19 m de alto y 14 m atrás).
 /// </summary>
 public static class AjustarEntorno
@@ -234,10 +235,78 @@ public static class AjustarEntorno
     }
 
     // ---------- cielo ----------
+    // Skybox de montañas (hecho en Blender): una sola imagen panorámica 360° de 4096 x 2048 con el
+    // cielo, los cerros de la cuenca y el lago al oeste. Shader Skybox/Panoramic, el más barato.
+    // El centro de la imagen es el norte: con Rotation = 90 el norte queda en +Z y el lago al oeste (-X).
+    const string RutaSkybox = Texturas + "Cielo/T_Skybox_Montanas_4K.jpg";
+    const string RutaMaterialSkybox = Materiales + "M_SkyboxMontanas.mat";
+
+    [MenuItem("Codice/Poner skybox de montañas")]
+    public static void PonerSkybox()
+    {
+        PonerCielo();
+        EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+        Debug.Log("Skybox puesto. Guarda la escena (Ctrl + S).");
+    }
+
+    /// <summary>
+    /// Para la línea de comandos (solo el cielo, sin tocar el agua ni la cámara):
+    /// Unity.exe -batchmode -projectPath client -executeMethod AjustarEntorno.PonerSkyboxEnEscenaPueblo -quit
+    /// </summary>
+    public static void PonerSkyboxEnEscenaPueblo()
+    {
+        EditorSceneManager.OpenScene(RutaEscena, OpenSceneMode.Single);
+        PonerSkybox();
+        EditorSceneManager.SaveScene(EditorSceneManager.GetActiveScene());
+        AssetDatabase.SaveAssets();
+    }
+
+    /// <summary>El material del skybox de montañas, o null si la imagen no está en el proyecto.</summary>
+    static Material MaterialSkybox()
+    {
+        TextureImporter importador = AssetImporter.GetAtPath(RutaSkybox) as TextureImporter;
+        if (importador == null)
+        {
+            return null;
+        }
+        // panorámica: sin mipmaps (evita la costura donde se unen los bordes), se repite a lo ancho
+        // y no a lo alto, a 4K para que el horizonte se vea nítido con la cámara de seguimiento
+        if (importador.mipmapEnabled || importador.maxTextureSize != 4096 ||
+            importador.wrapModeU != TextureWrapMode.Repeat || importador.wrapModeV != TextureWrapMode.Clamp)
+        {
+            importador.mipmapEnabled = false;
+            importador.maxTextureSize = 4096;
+            importador.wrapModeU = TextureWrapMode.Repeat;
+            importador.wrapModeV = TextureWrapMode.Clamp;
+            importador.SaveAndReimport();
+        }
+        Material cielo = AssetDatabase.LoadAssetAtPath<Material>(RutaMaterialSkybox);
+        if (cielo == null)
+        {
+            cielo = new Material(Shader.Find("Skybox/Panoramic"));
+            AssetDatabase.CreateAsset(cielo, RutaMaterialSkybox);
+        }
+        cielo.SetTexture("_MainTex", AssetDatabase.LoadAssetAtPath<Texture2D>(RutaSkybox));
+        cielo.SetFloat("_Mapping", 1f);        // 1 = latitud-longitud (imagen 2:1)
+        cielo.DisableKeyword("_MAPPING_6_FRAMES_LAYOUT");
+        cielo.SetFloat("_ImageType", 0f);      // 0 = 360 grados
+        cielo.SetFloat("_Rotation", 90f);      // norte en +Z, lago al oeste
+        cielo.SetFloat("_Exposure", 1f);
+        cielo.SetColor("_Tint", new Color(0.5f, 0.5f, 0.5f));   // gris medio = sin teñir
+        EditorUtility.SetDirty(cielo);
+        return cielo;
+    }
+
     static void PonerCielo()
     {
-        // Cielo "procedural": Unity lo calcula con fórmulas (sin texturas), casi no gasta recursos.
-        // Con la cámara cenital apenas se ve, así que basta con un cielo azul con sol.
+        Material skybox = MaterialSkybox();
+        if (skybox != null)
+        {
+            AplicarCielo(skybox);
+            return;
+        }
+
+        // Sin la imagen: cielo "procedural": Unity lo calcula con fórmulas (sin texturas), casi no gasta recursos.
         string ruta = Materiales + "M_Cielo.mat";
         Material cielo = AssetDatabase.LoadAssetAtPath<Material>(ruta);
         if (cielo != null && cielo.shader.name != "Skybox/Procedural")
@@ -256,7 +325,11 @@ public static class AjustarEntorno
         cielo.SetColor("_GroundColor", new Color(0.38f, 0.34f, 0.28f));   // tierra de la cuenca
         cielo.SetFloat("_Exposure", 1.25f);
         EditorUtility.SetDirty(cielo);
+        AplicarCielo(cielo);
+    }
 
+    static void AplicarCielo(Material cielo)
+    {
         RenderSettings.skybox = cielo;
         RenderSettings.ambientMode = AmbientMode.Skybox;       // la luz ambiental sale del cielo
         DynamicGI.UpdateEnvironment();
