@@ -21,6 +21,7 @@ public class ClienteSimulacion : MonoBehaviour
     public EstadoDatos Estado { get; private set; }
     public float HoraUltimoEstado { get; private set; }
     public bool Conectado { get; private set; }
+    public string ErrorConexion { get; private set; }   // vacío si todo va bien
 
     // Se llama cada vez que llega un estado nuevo
     public event Action<EstadoDatos> AlRecibirEstado;
@@ -86,8 +87,9 @@ public class ClienteSimulacion : MonoBehaviour
             yield return peticion.SendWebRequest();
             if (peticion.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("No se pudo conectar con el servidor en " + urlServidor
-                               + ". ¿Está corriendo uvicorn? Error: " + peticion.error);
+                ErrorConexion = "No se pudo conectar con el servidor en " + urlServidor
+                                + ". ¿Está corriendo uvicorn? (" + peticion.error + ")";
+                Debug.LogError(ErrorConexion);
                 yield break;
             }
             RecibirEstado(peticion.downloadHandler.text);

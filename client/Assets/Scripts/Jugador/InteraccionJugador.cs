@@ -30,6 +30,16 @@ public class InteraccionJugador : MonoBehaviour
     private string trojeCercano = "";          // id del troje que tiene a su alcance ("" = ninguno)
     private bool quemando = false;
 
+    // Lo que lee el HUD
+    public string TrojeCercano
+    {
+        get { return trojeCercano; }
+    }
+    public bool Quemando
+    {
+        get { return quemando; }
+    }
+
     void Start()
     {
         trojes = new Transform[idsTrojes.Length];
@@ -146,7 +156,7 @@ public class InteraccionJugador : MonoBehaviour
         return t != null && t.burning;
     }
 
-    TrojeEstado EstadoDelTroje(string id)
+    public TrojeEstado EstadoDelTroje(string id)
     {
         if (cliente.Estado == null || cliente.Estado.trojes == null)
         {
@@ -160,29 +170,5 @@ public class InteraccionJugador : MonoBehaviour
             }
         }
         return null;
-    }
-
-    // Aviso en pantalla (provisional, hasta tener el HUD)
-    void OnGUI()
-    {
-        if (trojeCercano == "")
-        {
-            return;
-        }
-        string texto;
-        if (quemando)
-        {
-            TrojeEstado t = EstadoDelTroje(trojeCercano);
-            float progreso = t != null ? t.progress : 0f;
-            texto = "Quemando el troje " + trojeCercano + "... " + Mathf.RoundToInt(progreso * 100f) + "%";
-        }
-        else
-        {
-            texto = "Mantén E para quemar el troje " + trojeCercano;
-        }
-        GUIStyle estilo = new GUIStyle(GUI.skin.box);
-        estilo.fontSize = 20;
-        float ancho = 420f;
-        GUI.Box(new Rect((Screen.width - ancho) / 2f, Screen.height - 90f, ancho, 40f), texto, estilo);
     }
 }

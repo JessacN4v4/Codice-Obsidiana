@@ -80,6 +80,12 @@ public static class ConectarServidor
         interaccion.materialRuido = MaterialTransparente("OndaRuido", new Color(0.95f, 0.92f, 0.8f, 0.35f));
         EditorUtility.SetDirty(interaccion);
 
+        // Interfaz en pantalla
+        HUD hud = simulacion.AddComponent<HUD>();
+        hud.cliente = cliente;
+        hud.movimiento = jugador;
+        hud.interaccion = interaccion;
+
         EditorSceneManager.MarkSceneDirty(simulacion.scene);
         Selection.activeGameObject = simulacion;
         Debug.Log("Simulación lista. Levanta el servidor, guarda la escena y dale Play.");
