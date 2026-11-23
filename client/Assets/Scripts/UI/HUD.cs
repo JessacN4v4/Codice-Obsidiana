@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 /// <summary>
-/// Interfaz en pantalla (provisional para el graybox), dibujada con OnGUI:
+/// Interfaz en pantalla (provisional para el graybox), con uGUI en los dos displays:
 /// - Panel arriba a la derecha: fase, sospecha (o alerta de los guardias en la huida),
 ///   alerta del pueblo, trojes, piedras, aliento y objetivo.
 /// - Mensajes del servidor arriba al centro, con color según el tipo.
 /// - Aviso para quemar el troje abajo al centro.
-/// Todo se dibuja en una pantalla "virtual" de 1080 px de alto y se escala a la real.
+/// Se crea un Canvas por display (OnGUI solo se ve en el Display 1) con la misma información.
+/// Medidas en una pantalla de referencia de 1920 x 1080 que se escala según el alto real.
 /// </summary>
 public class HUD : MonoBehaviour
 {
@@ -19,8 +21,6 @@ public class HUD : MonoBehaviour
     public float duracionMensaje = 3.5f;
     public int maximoMensajes = 3;
 
-    const float AltoBase = 1080f;
-
     class Mensaje
     {
         public string texto;
@@ -28,15 +28,35 @@ public class HUD : MonoBehaviour
         public float hasta;      // hora en que desaparece
     }
 
-    private List<Mensaje> mensajes = new List<Mensaje>();
-    private GUIStyle estiloTexto;
-    private GUIStyle estiloTitulo;
-    private GUIStyle estiloMensaje;
-    private GUIStyle estiloAviso;
+    /// <summary>Los elementos de la interfaz en un display.</summary>
+    class Vista
+    {
+        public GameObject panel;
+        public Text fase, sospecha, alertaPueblo, trojes, piedras, aliento, objetivo;
+        public Image barraSospecha, barraAliento;
+        public Image[] cuadrosAlerta = new Image[3];
+        public Image[] cuadrosTrojes = new Image[3];
+        public Text[] letrasTrojes = new Text[3];
+        public Image[] cajasMensaje;
+        public Text[] textosMensaje;
+        public Image cajaAviso;
+        public Text textoAviso;
+        public Image cajaConexion;
+        public Text textoConexion;
+    }
+
+    private readonly List<Mensaje> mensajes = new List<Mensaje>();
+    private readonly List<Vista> vistas = new List<Vista>();
+
+    static readonly Color Apagado = new Color(0.25f, 0.22f, 0.2f);
 
     void Start()
     {
         cliente.AlRecibirEstado += AlRecibirEstado;
+        for (int display = 0; display < 2; display++)
+        {
+            vistas.Add(CrearVista(display));
+        }
     }
 
     void OnDestroy()
@@ -71,94 +91,68 @@ public class HUD : MonoBehaviour
         }
     }
 
-    // ---------- dibujo ----------
-    void OnGUI()
+    // ---------- construcción ----------
+    Vista CrearVista(int display)
     {
-        PrepararEstilos();
-        float escala = Screen.height / AltoBase;
-        GUI.matrix = Matrix4x4.Scale(new Vector3(escala, escala, 1f));
-        float ancho = Screen.width / escala;   // ancho de la pantalla virtual
+        Vista v = new Vista();
+        Transform canvas = UIFabrica.CrearCanvas("HUD", display, 0, transform).transform;
+        Vector2 arribaIzq = new Vector2(0f, 1f);
+        Color texto = UIFabrica.ColorTexto;
 
-        if (!cliente.Conectado)
-        {
-            DibujarConexion(ancho);
-            return;
-        }
-        EstadoDatos estado = cliente.Estado;
-        if (estado == null || estado.over)
-        {
-            return;      // al terminar, la PantallaFinal ocupa la pantalla
-        }
-        DibujarPanel(estado, ancho);
-        DibujarMensajes(ancho);
-        DibujarAvisoTroje(ancho);
-    }
-
-    void DibujarPanel(EstadoDatos e, float anchoPantalla)
-    {
-        float w = 400f;
-        float x = anchoPantalla - w - 20f;     // pegado al lado derecho
-        float y = 20f;
-        GUI.Box(new Rect(x, y, w, 330f), "");
-        x += 16f;
-        y += 10f;
-        float anchoBarra = w - 32f;
-
-        string fase = e.phase == 1 ? "FASE 1 · INFILTRACIÓN" : "FASE 2 · HUIDA";
-        estiloTitulo.normal.textColor = e.phase == 1 ? new Color(0.95f, 0.85f, 0.6f) : new Color(1f, 0.45f, 0.35f);
-        GUI.Label(new Rect(x, y, anchoBarra, 32f), fase, estiloTitulo);
-        y += 38f;
-
-        if (e.phase == 1)
-        {
-            GUI.Label(new Rect(x, y, anchoBarra, 26f), "Sospecha: " + Mathf.RoundToInt(e.suspicion), estiloTexto);
-            y += 26f;
-            float s = e.suspicion / 100f;
-            Barra(new Rect(x, y, anchoBarra, 14f), s, Color.Lerp(new Color(0.95f, 0.8f, 0.2f), new Color(0.9f, 0.15f, 0.1f), s));
-        }
-        else
-        {
-            float maxima = AlertaMaximaDeGuardias(e);
-            GUI.Label(new Rect(x, y, anchoBarra, 26f), "Alerta de los guardias: " + Mathf.RoundToInt(maxima), estiloTexto);
-            y += 26f;
-            Barra(new Rect(x, y, anchoBarra, 14f), maxima / 100f, new Color(0.9f, 0.15f, 0.1f));
-        }
-        y += 26f;
-
-        GUI.Label(new Rect(x, y, 200f, 26f), "Alerta del pueblo", estiloTexto);
+        // panel arriba a la derecha
+        Image panel = UIFabrica.Caja(canvas, "Panel", new Vector2(1f, 1f), new Vector2(1f, 1f),
+            new Vector2(-20f, -20f), new Vector2(400f, 330f), UIFabrica.ColorCaja);
+        v.panel = panel.gameObject;
+        Transform p = panel.transform;
+        float x = 16f;
+        float w = 368f;
+        v.fase = UIFabrica.Texto(p, "Fase", arribaIzq, arribaIzq, new Vector2(x, -10f), new Vector2(w, 32f), 24, TextAnchor.MiddleLeft, texto, true);
+        v.sospecha = UIFabrica.Texto(p, "Sospecha", arribaIzq, arribaIzq, new Vector2(x, -48f), new Vector2(w, 26f), 20, TextAnchor.MiddleLeft, texto);
+        v.barraSospecha = UIFabrica.Barra(p, "BarraSospecha", new Vector2(x, -74f), new Vector2(w, 14f), Color.yellow);
+        v.alertaPueblo = UIFabrica.Texto(p, "AlertaPueblo", arribaIzq, arribaIzq, new Vector2(x, -100f), new Vector2(200f, 26f), 20, TextAnchor.MiddleLeft, texto);
+        v.alertaPueblo.text = "Alerta del pueblo";
         for (int i = 0; i < 3; i++)
         {
-            Color c = i < e.alert ? new Color(0.9f, 0.3f, 0.15f) : new Color(0.25f, 0.22f, 0.2f);
-            Cuadro(new Rect(x + 200f + i * 30f, y + 5f, 20f, 20f), c);
+            v.cuadrosAlerta[i] = UIFabrica.Caja(p, "Alerta" + i, arribaIzq, arribaIzq, new Vector2(x + 200f + i * 30f, -105f), new Vector2(20f, 20f), Apagado);
         }
-        y += 34f;
-
-        GUI.Label(new Rect(x, y, 200f, 26f), "Trojes " + e.burned + "/3", estiloTexto);
-        for (int i = 0; i < e.trojes.Length; i++)
+        v.trojes = UIFabrica.Texto(p, "Trojes", arribaIzq, arribaIzq, new Vector2(x, -134f), new Vector2(200f, 26f), 20, TextAnchor.MiddleLeft, texto);
+        for (int i = 0; i < 3; i++)
         {
-            Color c = e.trojes[i].burning ? new Color(1f, 0.35f, 0.1f) : new Color(0.25f, 0.22f, 0.2f);
-            Rect r = new Rect(x + 200f + i * 50f, y + 2f, 40f, 24f);
-            Cuadro(r, c);
-            GUI.Label(r, e.trojes[i].id, estiloAviso);
+            v.cuadrosTrojes[i] = UIFabrica.Caja(p, "Troje" + i, arribaIzq, arribaIzq, new Vector2(x + 200f + i * 50f, -136f), new Vector2(40f, 24f), Apagado);
+            v.letrasTrojes[i] = UIFabrica.TextoLleno(v.cuadrosTrojes[i].transform, "Letra", 18, TextAnchor.MiddleCenter, Color.white, true);
         }
-        y += 34f;
+        v.piedras = UIFabrica.Texto(p, "Piedras", arribaIzq, arribaIzq, new Vector2(x, -168f), new Vector2(w, 26f), 20, TextAnchor.MiddleLeft, texto);
+        v.aliento = UIFabrica.Texto(p, "Aliento", arribaIzq, arribaIzq, new Vector2(x, -200f), new Vector2(w, 26f), 20, TextAnchor.MiddleLeft, texto);
+        v.barraAliento = UIFabrica.Barra(p, "BarraAliento", new Vector2(x, -226f), new Vector2(w, 12f), Color.cyan);
+        v.objetivo = UIFabrica.Texto(p, "Objetivo", arribaIzq, arribaIzq, new Vector2(x, -248f), new Vector2(w, 70f), 20, TextAnchor.UpperLeft, texto);
 
-        GUI.Label(new Rect(x, y, anchoBarra, 26f), "Piedras: " + e.stones + "   (Q o clic derecho)", estiloTexto);
-        y += 32f;
+        // mensajes del servidor arriba al centro
+        int n = Mathf.Max(1, maximoMensajes);
+        v.cajasMensaje = new Image[n];
+        v.textosMensaje = new Text[n];
+        for (int i = 0; i < n; i++)
+        {
+            v.cajasMensaje[i] = UIFabrica.Caja(canvas, "Mensaje" + i, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f),
+                new Vector2(0f, -24f - i * 52f), new Vector2(820f, 46f), UIFabrica.ColorCaja);
+            v.textosMensaje[i] = UIFabrica.TextoLleno(v.cajasMensaje[i].transform, "Texto", 24, TextAnchor.MiddleCenter, texto);
+        }
 
-        string aliento = movimiento.Agotado ? "Aliento (agotado)" : "Aliento   (Shift para correr)";
-        GUI.Label(new Rect(x, y, anchoBarra, 26f), aliento, estiloTexto);
-        y += 26f;
-        Color colorAliento = movimiento.Agotado ? new Color(0.8f, 0.3f, 0.2f) : new Color(0.4f, 0.7f, 0.95f);
-        Barra(new Rect(x, y, anchoBarra, 12f), movimiento.Aliento / movimiento.alientoMaximo, colorAliento);
-        y += 22f;
+        // aviso para quemar el troje abajo al centro
+        v.cajaAviso = UIFabrica.Caja(canvas, "AvisoTroje", new Vector2(0.5f, 0f), new Vector2(0.5f, 0f),
+            new Vector2(0f, 54f), new Vector2(460f, 46f), UIFabrica.ColorCaja);
+        v.textoAviso = UIFabrica.TextoLleno(v.cajaAviso.transform, "Texto", 24, TextAnchor.MiddleCenter, new Color(1f, 0.85f, 0.55f));
 
-        GUI.Label(new Rect(x, y, anchoBarra, 56f), Objetivo(e), estiloTexto);
+        // estado de la conexión al centro
+        v.cajaConexion = UIFabrica.Caja(canvas, "Conexion", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(1000f, 60f), UIFabrica.ColorCaja);
+        v.textoConexion = UIFabrica.TextoLleno(v.cajaConexion.transform, "Texto", 24, TextAnchor.MiddleCenter, Color.white);
+        return v;
     }
 
-    void DibujarMensajes(float ancho)
+    // ---------- actualización ----------
+    void Update()
     {
-        // quitar los que ya caducaron
+        // quitar los mensajes que ya caducaron
         for (int i = mensajes.Count - 1; i >= 0; i--)
         {
             if (Time.time > mensajes[i].hasta)
@@ -166,47 +160,107 @@ public class HUD : MonoBehaviour
                 mensajes.RemoveAt(i);
             }
         }
-        float w = 820f;
-        float y = 24f;
-        foreach (Mensaje m in mensajes)
+        foreach (Vista v in vistas)
         {
-            estiloMensaje.normal.textColor = m.color;
-            GUI.Box(new Rect((ancho - w) / 2f, y, w, 46f), m.texto, estiloMensaje);
-            y += 52f;
+            Actualizar(v);
         }
     }
 
-    void DibujarAvisoTroje(float ancho)
+    void Actualizar(Vista v)
+    {
+        bool conectado = cliente.Conectado;
+        EstadoDatos e = cliente.Estado;
+        bool jugando = conectado && e != null && !e.over;   // al terminar, la PantallaFinal ocupa la pantalla
+
+        // conexión
+        v.cajaConexion.gameObject.SetActive(!conectado);
+        if (!conectado)
+        {
+            bool error = !string.IsNullOrEmpty(cliente.ErrorConexion);
+            v.textoConexion.text = error ? cliente.ErrorConexion : "Conectando con el servidor...";
+            v.textoConexion.color = error ? new Color(1f, 0.5f, 0.4f) : Color.white;
+        }
+
+        v.panel.SetActive(jugando);
+        if (jugando)
+        {
+            ActualizarPanel(v, e);
+        }
+
+        // mensajes
+        for (int i = 0; i < v.cajasMensaje.Length; i++)
+        {
+            bool hay = jugando && i < mensajes.Count;
+            v.cajasMensaje[i].gameObject.SetActive(hay);
+            if (hay)
+            {
+                v.textosMensaje[i].text = mensajes[i].texto;
+                v.textosMensaje[i].color = mensajes[i].color;
+            }
+        }
+
+        // aviso del troje
+        string aviso = jugando ? TextoAvisoTroje() : "";
+        v.cajaAviso.gameObject.SetActive(aviso != "");
+        v.textoAviso.text = aviso;
+    }
+
+    void ActualizarPanel(Vista v, EstadoDatos e)
+    {
+        v.fase.text = e.phase == 1 ? "FASE 1 · INFILTRACIÓN" : "FASE 2 · HUIDA";
+        v.fase.color = e.phase == 1 ? new Color(0.95f, 0.85f, 0.6f) : new Color(1f, 0.45f, 0.35f);
+
+        if (e.phase == 1)
+        {
+            float s = e.suspicion / 100f;
+            v.sospecha.text = "Sospecha: " + Mathf.RoundToInt(e.suspicion);
+            UIFabrica.PonerBarra(v.barraSospecha, s, Color.Lerp(new Color(0.95f, 0.8f, 0.2f), new Color(0.9f, 0.15f, 0.1f), s));
+        }
+        else
+        {
+            float maxima = AlertaMaximaDeGuardias(e);
+            v.sospecha.text = "Alerta de los guardias: " + Mathf.RoundToInt(maxima);
+            UIFabrica.PonerBarra(v.barraSospecha, maxima / 100f, new Color(0.9f, 0.15f, 0.1f));
+        }
+
+        for (int i = 0; i < 3; i++)
+        {
+            v.cuadrosAlerta[i].color = i < e.alert ? new Color(0.9f, 0.3f, 0.15f) : Apagado;
+        }
+
+        v.trojes.text = "Trojes " + e.burned + "/3";
+        for (int i = 0; i < 3; i++)
+        {
+            bool hay = e.trojes != null && i < e.trojes.Length;
+            v.cuadrosTrojes[i].gameObject.SetActive(hay);
+            if (hay)
+            {
+                v.cuadrosTrojes[i].color = e.trojes[i].burning ? new Color(1f, 0.35f, 0.1f) : Apagado;
+                v.letrasTrojes[i].text = e.trojes[i].id;
+            }
+        }
+
+        v.piedras.text = "Piedras: " + e.stones + "   (Q o clic derecho)";
+        v.aliento.text = movimiento.Agotado ? "Aliento (agotado)" : "Aliento   (Shift para correr)";
+        Color colorAliento = movimiento.Agotado ? new Color(0.8f, 0.3f, 0.2f) : new Color(0.4f, 0.7f, 0.95f);
+        UIFabrica.PonerBarra(v.barraAliento, movimiento.Aliento / movimiento.alientoMaximo, colorAliento);
+        v.objetivo.text = Objetivo(e);
+    }
+
+    string TextoAvisoTroje()
     {
         string id = interaccion.TrojeCercano;
         if (id == "")
         {
-            return;
+            return "";
         }
-        string texto;
         if (interaccion.Quemando)
         {
             TrojeEstado t = interaccion.EstadoDelTroje(id);
             float progreso = t != null ? t.progress : 0f;
-            texto = "Quemando el troje " + id + "... " + Mathf.RoundToInt(progreso * 100f) + "%";
+            return "Quemando el troje " + id + "... " + Mathf.RoundToInt(progreso * 100f) + "%";
         }
-        else
-        {
-            texto = "Mantén E para quemar el troje " + id;
-        }
-        float w = 460f;
-        estiloMensaje.normal.textColor = new Color(1f, 0.85f, 0.55f);
-        GUI.Box(new Rect((ancho - w) / 2f, AltoBase - 100f, w, 46f), texto, estiloMensaje);
-    }
-
-    void DibujarConexion(float ancho)
-    {
-        string texto = string.IsNullOrEmpty(cliente.ErrorConexion)
-            ? "Conectando con el servidor..."
-            : cliente.ErrorConexion;
-        float w = 1000f;
-        estiloMensaje.normal.textColor = string.IsNullOrEmpty(cliente.ErrorConexion) ? Color.white : new Color(1f, 0.5f, 0.4f);
-        GUI.Box(new Rect((ancho - w) / 2f, AltoBase / 2f - 30f, w, 60f), texto, estiloMensaje);
+        return "Mantén E para quemar el troje " + id;
     }
 
     // ---------- ayudantes ----------
@@ -248,45 +302,5 @@ public class HUD : MonoBehaviour
             return new Color(0.5f, 1f, 0.55f);      // verde: victoria
         }
         return new Color(1f, 0.9f, 0.6f);           // amarillo: avisos
-    }
-
-    void Barra(Rect r, float valor, Color color)
-    {
-        Cuadro(r, new Color(0.15f, 0.12f, 0.1f, 0.9f));                                       // fondo
-        Cuadro(new Rect(r.x, r.y, r.width * Mathf.Clamp01(valor), r.height), color);          // relleno
-    }
-
-    void Cuadro(Rect r, Color color)
-    {
-        GUI.color = color;
-        GUI.DrawTexture(r, Texture2D.whiteTexture);
-        GUI.color = Color.white;
-    }
-
-    void PrepararEstilos()
-    {
-        if (estiloTexto != null)
-        {
-            return;      // los estilos se crean una sola vez
-        }
-        estiloTexto = new GUIStyle(GUI.skin.label);
-        estiloTexto.fontSize = 20;
-        estiloTexto.wordWrap = true;
-        estiloTexto.normal.textColor = new Color(0.95f, 0.9f, 0.82f);
-
-        estiloTitulo = new GUIStyle(GUI.skin.label);
-        estiloTitulo.fontSize = 24;
-        estiloTitulo.fontStyle = FontStyle.Bold;
-
-        estiloMensaje = new GUIStyle(GUI.skin.box);
-        estiloMensaje.fontSize = 24;
-        estiloMensaje.alignment = TextAnchor.MiddleCenter;
-        estiloMensaje.wordWrap = true;
-
-        estiloAviso = new GUIStyle(GUI.skin.label);
-        estiloAviso.fontSize = 18;
-        estiloAviso.fontStyle = FontStyle.Bold;
-        estiloAviso.alignment = TextAnchor.MiddleCenter;
-        estiloAviso.normal.textColor = Color.white;
     }
 }

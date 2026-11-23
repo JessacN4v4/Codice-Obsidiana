@@ -3,7 +3,9 @@ using UnityEngine;
 /// <summary>
 /// Movimiento de Tariácuri con vista cenital.
 /// WASD o flechas: caminar. Shift: correr (gasta aliento).
-/// W siempre es hacia el norte del mapa (la cámara no gira).
+/// Con la cámara cenital W es hacia el norte del mapa y el personaje gira hacia donde camina.
+/// Con la de seguimiento (estilo shooter) W es hacia donde mira la cámara, A/D caminan de lado,
+/// S retrocede y el personaje mira hacia donde mira la cámara (ControlDeCamaras lo configura).
 /// Valores iguales a los del servidor: 112 px/s caminando y 185 px/s corriendo (× 0.05 m por px).
 /// </summary>
 [RequireComponent(typeof(Rigidbody))]
@@ -27,6 +29,14 @@ public class MovimientoJugador : MonoBehaviour
     // Otros scripts lo activan para que el jugador no se mueva (por ejemplo, mientras quema un troje)
     public bool Bloqueado { get; set; }
 
+    // Si no es null, las teclas se miden respecto a hacia dónde mira este objeto (la cámara de seguimiento)
+    [HideInInspector] public Transform referencia;
+    // Si es true (cámara de seguimiento), el personaje mira hacia donde mira la referencia y no hacia donde camina
+    [HideInInspector] public bool mirarConCamara;
+
+    [Header("Giro")]
+    public float velocidadGiro = 720f;         // grados por segundo al alinearse con la cámara
+
     private Rigidbody rb;
     private Vector3 direccion;                 // hacia dónde quiere moverse (largo 0 o 1)
 
@@ -42,6 +52,12 @@ public class MovimientoJugador : MonoBehaviour
         float x = Input.GetAxisRaw("Horizontal");
         float z = Input.GetAxisRaw("Vertical");
         direccion = new Vector3(x, 0f, z).normalized;
+        if (referencia != null)
+        {
+            // girar las teclas según la cámara (solo el giro horizontal, sin la inclinación)
+            Quaternion giroCamara = Quaternion.Euler(0f, referencia.eulerAngles.y, 0f);
+            direccion = giroCamara * direccion;
+        }
         if (Bloqueado)
         {
             direccion = Vector3.zero;          // quieto (y sin correr)
@@ -78,7 +94,17 @@ public class MovimientoJugador : MonoBehaviour
 
         if (direccion != Vector3.zero)
         {
-            rb.MoveRotation(Quaternion.LookRotation(direccion));          // mira hacia donde camina
+            if (mirarConCamara && referencia != null)
+            {
+                // estilo shooter: de frente hacia donde mira la cámara (de lado con A/D, de espaldas con S)
+                Quaternion haciaCamara = Quaternion.Euler(0f, referencia.eulerAngles.y, 0f);
+                rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, haciaCamara,
+                    velocidadGiro * Time.fixedDeltaTime));
+            }
+            else
+            {
+                rb.MoveRotation(Quaternion.LookRotation(direccion));      // mira hacia donde camina
+            }
         }
     }
 }

@@ -99,6 +99,8 @@ public static class ColocarJugador
         }
 
         EditorSceneManager.MarkSceneDirty(jugador.scene);
+        // el jugador es nuevo: reconectar la red, el HUD, las piedras y las cámaras con él
+        ReconectarJugador.ReconectarEnEscenaActual();
         Selection.activeGameObject = jugador;
         Debug.Log("Jugador colocado en el inicio. Guarda la escena (Ctrl + S) y dale Play.");
         return true;
