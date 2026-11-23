@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 #if UNITY_EDITOR
 using System.Reflection;
 using UnityEditor;
@@ -16,6 +17,8 @@ using UnityEditor;
 ///  - en un build con dos monitores, el monitor donde está el mouse;
 ///  - con un solo monitor, el Display 1. La tecla V intercambia los displays de las dos cámaras.
 /// Con la cámara de seguimiento: Esc suelta el mouse (para usar menús) y clic izquierdo lo recupera.
+/// Cada display muestra abajo la ayuda de controles de SU cámara, y el de seguimiento la mira del
+/// centro (con uGUI: OnGUI solo se ve en el Display 1).
 /// </summary>
 public class ControlDeCamaras : MonoBehaviour
 {
@@ -34,7 +37,22 @@ public class ControlDeCamaras : MonoBehaviour
     private int displayVisto = 0;              // el display que muestra la vista Game (0 = Display 1)
     private bool soltadoConEsc = false;        // el jugador soltó el mouse a propósito: no recapturarlo solo
     private bool avisado = false;              // ya se escribió en la consola qué cámara se usa
-    private GUIStyle estiloAyuda;
+
+    // ayuda de controles y mira, una por display
+    class Ayuda
+    {
+        public GameObject mira;
+        public Image caja;
+        public Text texto;
+    }
+    private readonly Ayuda[] ayudas = new Ayuda[2];
+
+    const string AyudaCenital =
+        "W/A/S/D: caminar (W = norte) · Shift: correr · E: quemar troje · Q o clic der.: piedra hacia el mouse · Rueda: zoom · V: cambiar cámara";
+    const string AyudaSeguimiento =
+        "Mouse: girar cámara · W/S: adelante/atrás · A/D: de lado · Shift: correr · E: quemar troje · Q o clic der.: piedra a la mira · Esc: soltar mouse · V: cambiar cámara";
+    const string AyudaMouseSuelto =
+        "Mouse suelto · Clic izquierdo: volver a girar la cámara con el mouse · W/A/S/D: caminar · V: cambiar cámara";
 
     void Start()
     {
@@ -56,6 +74,53 @@ public class ControlDeCamaras : MonoBehaviour
         if (!Application.isEditor && Display.displays.Length > 1)
         {
             Display.displays[1].Activate();
+        }
+
+        for (int d = 0; d < 2; d++)
+        {
+            ayudas[d] = CrearAyuda(d);
+        }
+    }
+
+    Ayuda CrearAyuda(int display)
+    {
+        Ayuda a = new Ayuda();
+        Transform canvas = UIFabrica.CrearCanvas("AyudaControles", display, 5, transform).transform;
+        // mira en el centro de la pantalla (hacia ahí van las piedras con la cámara de seguimiento)
+        Image horizontal = UIFabrica.Caja(canvas, "Mira", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(18f, 2f), new Color(1f, 1f, 1f, 0.85f));
+        UIFabrica.Caja(horizontal.transform, "Vertical", new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f),
+            Vector2.zero, new Vector2(2f, 18f), new Color(1f, 1f, 1f, 0.85f));
+        a.mira = horizontal.gameObject;
+        // ayuda abajo a la izquierda
+        a.caja = UIFabrica.Caja(canvas, "Ayuda", Vector2.zero, Vector2.zero, new Vector2(20f, 8f), new Vector2(800f, 36f),
+            new Color(0.08f, 0.07f, 0.06f, 0.6f));
+        a.texto = UIFabrica.TextoLleno(a.caja.transform, "Texto", 20, TextAnchor.MiddleLeft, UIFabrica.ColorTexto);
+        a.texto.horizontalOverflow = HorizontalWrapMode.Overflow;
+        return a;
+    }
+
+    /// <summary>En cada display: la ayuda de la cámara que se ve ahí, y la mira solo con la de seguimiento.</summary>
+    void ActualizarAyuda(bool terminada)
+    {
+        for (int d = 0; d < ayudas.Length; d++)
+        {
+            Ayuda a = ayudas[d];
+            if (a == null)
+            {
+                continue;
+            }
+            bool esSeguimiento = camaraSeguimiento.targetDisplay == d;
+            a.mira.SetActive(esSeguimiento && !terminada);
+            a.caja.gameObject.SetActive(!terminada);
+            if (terminada)
+            {
+                continue;
+            }
+            string texto = !esSeguimiento ? AyudaCenital
+                : (seguimiento.MouseCapturado || !EnSeguimiento ? AyudaSeguimiento : AyudaMouseSuelto);
+            a.texto.text = texto;
+            a.caja.rectTransform.sizeDelta = new Vector2(a.texto.preferredWidth + 24f, 36f);
         }
     }
 
@@ -113,6 +178,7 @@ public class ControlDeCamaras : MonoBehaviour
             Capturar(false);                   // en la cenital o al terminar: mouse libre para los botones
         }
         seguimiento.MouseCapturado = Cursor.lockState == CursorLockMode.Locked;
+        ActualizarAyuda(terminada);
     }
 
     void Capturar(bool capturar)
@@ -201,36 +267,4 @@ public class ControlDeCamaras : MonoBehaviour
         return (int)propTargetDisplay.GetValue(vista);
     }
 #endif
-
-    void OnGUI()
-    {
-        if (!EnSeguimiento || (cliente != null && cliente.Estado != null && cliente.Estado.over))
-        {
-            return;
-        }
-
-        // mira en el centro de la pantalla (hacia ahí van las piedras)
-        float cx = Screen.width / 2f;
-        float cy = Screen.height / 2f;
-        Cuadro(new Rect(cx - 9f, cy - 1f, 18f, 2f));
-        Cuadro(new Rect(cx - 1f, cy - 9f, 2f, 18f));
-
-        if (estiloAyuda == null)
-        {
-            estiloAyuda = new GUIStyle(GUI.skin.label);
-            estiloAyuda.fontSize = Mathf.RoundToInt(Screen.height / 60f);
-            estiloAyuda.normal.textColor = new Color(0.95f, 0.9f, 0.82f);
-        }
-        string ayuda = seguimiento.MouseCapturado
-            ? "Mouse: girar cámara · W/S: adelante/atrás · A/D: de lado · Esc: soltar mouse · V: cambiar cámara"
-            : "Mouse suelto · Clic izquierdo: volver a girar la cámara con el mouse · V: cambiar cámara";
-        GUI.Label(new Rect(20f, Screen.height - 50f, Screen.width - 40f, 40f), ayuda, estiloAyuda);
-    }
-
-    void Cuadro(Rect r)
-    {
-        GUI.color = new Color(1f, 1f, 1f, 0.85f);
-        GUI.DrawTexture(r, Texture2D.whiteTexture);
-        GUI.color = Color.white;
-    }
 }
