@@ -153,6 +153,34 @@ public static class UIFabrica
         relleno.color = color;
     }
 
+    private static Sprite circulo;
+
+    /// <summary>Círculo blanco con borde suave, dibujado desde código (para óvalos y círculos de color).</summary>
+    public static Sprite Circulo
+    {
+        get
+        {
+            if (circulo == null)
+            {
+                int n = 64;
+                Texture2D textura = new Texture2D(n, n, TextureFormat.RGBA32, false);
+                textura.wrapMode = TextureWrapMode.Clamp;
+                float radio = n / 2f;
+                for (int y = 0; y < n; y++)
+                {
+                    for (int x = 0; x < n; x++)
+                    {
+                        float d = Vector2.Distance(new Vector2(x + 0.5f, y + 0.5f), new Vector2(radio, radio));
+                        textura.SetPixel(x, y, new Color(1f, 1f, 1f, Mathf.Clamp01(radio - d)));   // 1 px suavizado
+                    }
+                }
+                textura.Apply();
+                circulo = Sprite.Create(textura, new Rect(0, 0, n, n), new Vector2(0.5f, 0.5f), 100f);
+            }
+            return circulo;
+        }
+    }
+
     public static Button Boton(Transform padre, string nombre, Vector2 ancla, Vector2 pos, Vector2 tam, string texto,
                                UnityEngine.Events.UnityAction alPresionar)
     {

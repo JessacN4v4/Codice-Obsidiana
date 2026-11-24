@@ -6,6 +6,7 @@ using UnityEngine;
 /// Naranja (brilla un poco) mientras falta quemarlo; negro cuando ya se quemó.
 /// Sube y baja despacio y gira sobre sí mismo. Es un objeto 3D del mundo, así que se ve
 /// igual con la cámara cenital y con la de seguimiento.
+/// También pone un óvalo verde flotando encima de la canoa (la meta de la huida).
 /// Lo crea el HUD al empezar.
 /// </summary>
 public class MarcasTrojes : MonoBehaviour
@@ -20,7 +21,15 @@ public class MarcasTrojes : MonoBehaviour
     public float flotar = 0.2f;                // metros que sube y baja
     public float gradosPorSegundo = 60f;       // giro
 
+    [Header("Canoa")]
+    public Color colorCanoa = new Color(0.2f, 0.9f, 0.3f);
+    public float alturaSobreCanoa = 2.2f;      // metros sobre el suelo (centro del óvalo)
+    public Vector3 tamOvalo = new Vector3(0.7f, 1.1f, 0.7f);   // metros: más alto que ancho
+
     static readonly string[] Ids = { "A", "B", "C" };
+
+    private Transform ovalo;
+    private Vector3 puntoCanoa;
 
     class Marca
     {
@@ -32,6 +41,28 @@ public class MarcasTrojes : MonoBehaviour
     }
 
     private readonly List<Marca> marcas = new List<Marca>();
+
+    /// <summary>Centro fijo del óvalo de la canoa (sin flotar). false si no hay canoa en la escena.</summary>
+    public bool PuntoCanoa(out Vector3 punto)
+    {
+        punto = puntoCanoa;
+        return ovalo != null;
+    }
+
+    /// <summary>Centro fijo del rombo del troje con ese id (sin flotar). false si no hay.</summary>
+    public bool PuntoTroje(string id, out Vector3 punto)
+    {
+        foreach (Marca m in marcas)
+        {
+            if (m.id == id)
+            {
+                punto = m.punto;
+                return true;
+            }
+        }
+        punto = Vector3.zero;
+        return false;
+    }
 
     void Start()
     {
@@ -61,6 +92,34 @@ public class MarcasTrojes : MonoBehaviour
             marcas.Add(m);
             PintarMarca(m);
         }
+        CrearOvaloCanoa();
+    }
+
+    void CrearOvaloCanoa()
+    {
+        // la caja "Canoa" del graybox sigue en la escena (sin dibujarse) y marca dónde está la canoa
+        GameObject canoa = GameObject.Find("Canoa");
+        if (canoa == null)
+        {
+            return;
+        }
+        puntoCanoa = new Vector3(canoa.transform.position.x, alturaSobreCanoa, canoa.transform.position.z);
+
+        GameObject esfera = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        esfera.name = "MarcaCanoa";
+        Destroy(esfera.GetComponent<Collider>());
+        esfera.transform.SetParent(transform, false);
+        esfera.transform.position = puntoCanoa;
+        esfera.transform.localScale = tamOvalo;            // esfera estirada = óvalo
+        MeshRenderer dibujo = esfera.GetComponent<MeshRenderer>();
+        dibujo.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        Material material = new Material(Shader.Find("Universal Render Pipeline/Lit"));
+        material.SetColor("_BaseColor", colorCanoa);
+        material.SetFloat("_Smoothness", 0.7f);
+        material.EnableKeyword("_EMISSION");
+        material.SetColor("_EmissionColor", colorCanoa * 0.6f);   // brilla un poco, como los rombos
+        dibujo.sharedMaterial = material;
+        ovalo = esfera.transform;
     }
 
     void Update()
@@ -76,6 +135,10 @@ public class MarcasTrojes : MonoBehaviour
             m.rombo.position = m.punto + Vector3.up * (Mathf.Sin(Time.time * 2f + fase) * flotar);
             m.rombo.rotation = Quaternion.Euler(0f, Time.time * gradosPorSegundo + fase * 40f, 0f);
         }
+        if (ovalo != null)
+        {
+            ovalo.position = puntoCanoa + Vector3.up * (Mathf.Sin(Time.time * 2f) * flotar);
+        }
     }
 
     void PintarMarca(Marca m)
@@ -85,7 +148,8 @@ public class MarcasTrojes : MonoBehaviour
         m.material.SetColor("_EmissionColor", colorPorQuemar * (0.8f * (1f - m.quemado)));   // el negro no brilla
     }
 
-    bool TrojeQuemado(string id)
+    /// <summary>¿El servidor ya dice que ese troje arde?</summary>
+    public bool TrojeQuemado(string id)
     {
         if (cliente == null || cliente.Estado == null || cliente.Estado.trojes == null)
         {

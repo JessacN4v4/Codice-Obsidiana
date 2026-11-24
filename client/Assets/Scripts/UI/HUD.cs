@@ -8,7 +8,8 @@ using UnityEngine.UI;
 ///   alerta del pueblo, trojes, piedras, aliento y objetivo.
 /// - Mensajes del servidor arriba al centro, con color según el tipo.
 /// - Aviso para quemar el troje abajo al centro.
-/// Al empezar agrega MarcasTrojes (rombos sobre los trojes) y PantallaMision (contexto de la
+/// Al empezar agrega MarcasTrojes (rombos sobre los trojes y óvalo sobre la canoa),
+/// IndicadoresPantalla (flechas hacia ellos en el Display 1) y PantallaMision (contexto de la
 /// misión antes de jugar).
 /// Se crea un Canvas por display (OnGUI solo se ve en el Display 1) con la misma información.
 /// Medidas en una pantalla de referencia de 1920 x 1080 que se escala según el alto real.
@@ -67,6 +68,15 @@ public class HUD : MonoBehaviour
             marcas = gameObject.AddComponent<MarcasTrojes>();
         }
         marcas.cliente = cliente;
+
+        // flechas en la orilla del Display 1 hacia los trojes y la canoa
+        IndicadoresPantalla indicadores = GetComponent<IndicadoresPantalla>();
+        if (indicadores == null)
+        {
+            indicadores = gameObject.AddComponent<IndicadoresPantalla>();
+        }
+        indicadores.cliente = cliente;
+        indicadores.marcas = marcas;
 
         PantallaMision mision = GetComponent<PantallaMision>();
         if (mision == null)
