@@ -44,7 +44,8 @@ public class CanvasDeDisplay : MonoBehaviour
         canvas.planeDistance = camara.nearClipPlane + 0.05f;
     }
 
-    static Camera CamaraDelDisplay(int display)
+    /// <summary>La cámara que se ve en ese display (sin textura de destino), o null.</summary>
+    public static Camera CamaraDelDisplay(int display)
     {
         int n = Camera.allCamerasCount;
         if (n > camaras.Length)
